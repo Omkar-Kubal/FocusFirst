@@ -50,6 +50,8 @@ android {
 dependencies {
     // ── Core ──────────────────────────────────────────────────────────────
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.localbroadcastmanager)
+    implementation(libs.localbroadcastmanager)
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
     implementation(libs.androidx.lifecycle.runtime.ktx)
