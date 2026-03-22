@@ -84,6 +84,24 @@
                 android:resource="@xml/focus_first_widget_info" />
         </receiver>
 
+        <!-- ── WorkManager: disable default initializer ──────────────── -->
+        <!--
+            Hilt's HiltWorkerFactory must be set as the WorkManager factory.
+            The default auto-initializer must be removed so WorkManager waits
+            for FocusFirstApp.workManagerConfiguration (Configuration.Provider)
+            instead of initializing itself with the default factory.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup.InitializationProvider"
+                tools:node="remove" />
+        </provider>
+
     </application>
 
 </manifest>

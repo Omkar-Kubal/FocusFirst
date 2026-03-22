@@ -4,10 +4,24 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 @HiltAndroidApp
-class FocusFirstApp : Application() {
+class FocusFirstApp : Application(), Configuration.Provider {
+
+    // Injected by Hilt; used to build a WorkManager configuration that knows
+    // how to construct @HiltWorker classes (e.g. TimerAlarmWorker).
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    // WorkManager reads this property instead of auto-initializing, because the
+    // default initializer is removed from AndroidManifest.xml (see provider block).
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()

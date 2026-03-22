@@ -16,7 +16,10 @@ import com.focusfirst.data.db.SessionEntity
 import com.focusfirst.data.model.IntervalPreset
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
+import com.focusfirst.service.TimerAlarmWorker
 import com.focusfirst.service.TimerForegroundService
+import com.focusfirst.service.cancelAlarm
+import com.focusfirst.service.scheduleAlarm
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -181,6 +184,9 @@ class TimerViewModel @Inject constructor(
             )
         }
 
+        TimerAlarmWorker.resetCompletionFlag(application)                          // LINE 1
+        scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)              // LINE 2
+
         ContextCompat.startForegroundService(
             application,
             TimerForegroundService.buildStartIntent(application, durationSeconds, TimerPhase.FOCUS),
@@ -224,6 +230,8 @@ class TimerViewModel @Inject constructor(
         // Unconditional reset — saveSession nulls sessionStartMs if it ran,
         // but we guard here in case it didn't (elapsed ≤ 30 s).
         sessionStartMs = 0L
+
+        cancelAlarm(application)                                                   // LINE 3
 
         sendServiceAction(TimerForegroundService.ACTION_STOP)
         _timerState.value = TimerState()  // Return to idle defaults

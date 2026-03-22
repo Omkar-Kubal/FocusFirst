@@ -278,6 +278,7 @@ class TimerForegroundService : Service() {
      */
     private fun onPhaseFinished() {
         Log.d(TAG, "onPhaseFinished phase=$currentPhase")
+        TimerAlarmWorker.setCompleted(this)
         vibrate()
         playSound()
         stopForeground(STOP_FOREGROUND_REMOVE)
