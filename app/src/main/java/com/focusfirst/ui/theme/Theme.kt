@@ -1,78 +1,60 @@
 package com.focusfirst.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.focusfirst.data.model.TimerPhase
 
 // ============================================================================
-// Brand palette
+// The Focused Void — brand palette
 // ============================================================================
 
 /**
- * Central color palette for FocusFirst.
+ * Central color palette for FocusFirst — "The Focused Void" design system.
  *
- * Phase ring aliases ([FocusRing], [ShortBreakRing], [LongBreakRing]) are
- * intentionally indirected through named vals: retheme a phase ring by
- * changing its assignment here — one line, zero hunt-and-replace.
+ * This is a monochrome-first design.  [TomatoRed] is the ONLY coloured
+ * element and is reserved exclusively for the Pro CTA button.  All other
+ * interactive and decorative elements use white at varying opacities over a
+ * pure-black background.
  */
 object FocusColors {
 
-    // ── Core brand ───────────────────────────────────────────────────────────
-    val TomatoRed   = Color(0xFFE84B1A)
-    val GreenAccent = Color(0xFF1A9E5F)
-    val BlueAccent  = Color(0xFF2B7BE0)
+    // ── Pro CTA — only coloured element in the monochrome design ─────────────
+    val TomatoRed = Color(0xFFE84B1A)
 
-    // ── Phase ring colors — change these to retheme individual phases ────────
-    val FocusRing      = TomatoRed
-    val ShortBreakRing = GreenAccent
-    val LongBreakRing  = BlueAccent
+    // ── Background hierarchy (darkest → brightest) ────────────────────────────
+    val Background              = Color(0xFF000000)   // Pure AMOLED black
+    val SurfaceContainerLow     = Color(0xFF1B1B1B)   // Card / nav bar
+    val SurfaceContainerHigh    = Color(0xFF2A2A2A)   // Elevated card
+    val SurfaceContainerHighest = Color(0xFF353535)   // Highest-elevation surface
+    val SurfaceBright           = Color(0xFF393939)   // Active / focused element
 
-    // ── Surface palette ───────────────────────────────────────────────────────
-    val AmoledBlack  = Color(0xFF000000)
-    val SurfaceDark  = Color(0xFF1A1A1A)
-    val SurfaceLight = Color(0xFFF5F5F5)
+    // ── Text hierarchy ────────────────────────────────────────────────────────
+    val OnSurface        = Color(0xFFE2E2E2)   // Primary body text
+    val OnSurfaceVariant = Color(0xFFC6C6C6)   // Secondary / caption text
+
+    // ── Borders ───────────────────────────────────────────────────────────────
+    val OutlineVariant = Color(0xFF474747)
 }
 
 // ============================================================================
-// Color schemes
+// Color scheme — dark-first, single scheme for V1
 // ============================================================================
 
-private val LightColorScheme = lightColorScheme(
-    primary      = FocusColors.TomatoRed,
-    background   = Color.White,
-    surface      = FocusColors.SurfaceLight,
-    onPrimary    = Color.White,
-    onBackground = Color(0xFF1A1A1A),
-    onSurface    = Color(0xFF1A1A1A),
-)
-
-private val DarkColorScheme = darkColorScheme(
-    primary      = FocusColors.TomatoRed,
-    background   = FocusColors.SurfaceDark,
-    surface      = Color(0xFF2A2A2A),
-    onPrimary    = Color.White,
-    onBackground = Color.White,
-    onSurface    = Color.White,
-)
-
-/**
- * True-black variant of [DarkColorScheme] for OLED/AMOLED displays.
- *
- * [background] = pure black saves measurable power on pixel-level dimming
- * panels.  [surface] is kept slightly lifted so cards/sheets are
- * distinguishable from the background without a colour tint.
- */
-private val AmoledColorScheme = darkColorScheme(
-    primary      = FocusColors.TomatoRed,
-    background   = FocusColors.AmoledBlack,
-    surface      = Color(0xFF0D0D0D),
-    onPrimary    = Color.White,
-    onBackground = Color.White,
-    onSurface    = Color.White,
+private val VoidColorScheme = darkColorScheme(
+    primary              = Color.White,
+    onPrimary            = Color.Black,
+    primaryContainer     = FocusColors.SurfaceContainerHigh,
+    onPrimaryContainer   = FocusColors.OnSurface,
+    background           = FocusColors.Background,
+    onBackground         = Color.White,
+    surface              = FocusColors.SurfaceContainerLow,
+    onSurface            = FocusColors.OnSurface,
+    surfaceVariant       = FocusColors.SurfaceContainerHigh,
+    onSurfaceVariant     = FocusColors.OnSurfaceVariant,
+    outline              = FocusColors.OutlineVariant,
+    outlineVariant       = FocusColors.OutlineVariant,
 )
 
 // ============================================================================
@@ -80,45 +62,35 @@ private val AmoledColorScheme = darkColorScheme(
 // ============================================================================
 
 /**
- * Root Material 3 theme for FocusFirst.
+ * Root Material 3 theme for FocusFirst — "The Focused Void" design system.
  *
- * @param darkTheme  Defaults to the system dark-mode setting.  Pass an
- *                   explicit value to override (e.g. from a user preference).
- * @param amoledMode When true and [darkTheme] is also true, switches to the
- *                   pure-black [AmoledColorScheme].  Has no effect in light
- *                   mode because AMOLED savings only apply to dark pixels.
+ * The app is dark-first: [VoidColorScheme] (pure-black background) is used
+ * regardless of the [darkTheme] flag.  [amoledMode] is preserved for the
+ * Phase 2 AMOLED toggle; the background is already #000000 so it has no
+ * visual effect in V1.
  */
 @Composable
 fun FocusFirstTheme(
-    darkTheme:  Boolean = isSystemInDarkTheme(),
+    darkTheme:  Boolean = true,
     amoledMode: Boolean = false,
     content:    @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        darkTheme && amoledMode -> AmoledColorScheme
-        darkTheme               -> DarkColorScheme
-        else                    -> LightColorScheme
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = VoidColorScheme,
         typography  = Typography,
         content     = content,
     )
 }
 
 // ============================================================================
-// Phase color helper
+// Phase ring color — monochrome: always pure white
 // ============================================================================
 
 /**
- * Returns the progress-ring colour associated with this [TimerPhase].
+ * Returns the progress-ring colour for this [TimerPhase].
  *
- * Usage in Compose:
- *   val ringColor = timerState.phase.ringColor()
+ * In the Focused Void monochrome design all phases share the same white ring.
+ * Phase differentiation is communicated by the pill selector and phase label
+ * text, not by ring colour.
  */
-fun TimerPhase.ringColor(): Color = when (this) {
-    TimerPhase.FOCUS       -> FocusColors.FocusRing
-    TimerPhase.SHORT_BREAK -> FocusColors.ShortBreakRing
-    TimerPhase.LONG_BREAK  -> FocusColors.LongBreakRing
-}
+fun TimerPhase.ringColor(): Color = Color.White

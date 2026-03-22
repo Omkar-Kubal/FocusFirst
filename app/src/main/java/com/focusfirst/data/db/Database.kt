@@ -106,6 +106,10 @@ interface SessionDao {
     @Query("SELECT COUNT(*) FROM sessions WHERE wasCompleted = 1")
     fun observeTotalCompleted(): Flow<Int>
 
+    /** Most-recent [limit] sessions regardless of completion status, newest first. */
+    @Query("SELECT * FROM sessions ORDER BY startedAt DESC LIMIT :limit")
+    fun observeRecentSessions(limit: Int): Flow<List<SessionEntity>>
+
     /**
      * Number of sessions (any status) that started on or after [todayStartMs].
      *

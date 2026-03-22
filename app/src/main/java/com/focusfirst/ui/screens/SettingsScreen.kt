@@ -1,9 +1,9 @@
 package com.focusfirst.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,368 +11,437 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.Help
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusfirst.ui.theme.FocusColors
 import kotlin.math.roundToInt
 
 // ============================================================================
-// SettingsScreen
-//
-// V1: all settings stored in local remember state — fast to build and navigate.
-// V2: replace remember state with DataStore-backed SettingsViewModel bindings.
+// SettingsScreen — "The Focused Void" redesign
 // ============================================================================
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onNavigateBack: () -> Unit) {
+fun SettingsScreen() {
 
-    // ── Local settings state (V1 — no persistence) ────────────────────────────
-    var sessionsBeforeLongBreak by remember { mutableStateOf(4) }
-    var shortBreak              by remember { mutableStateOf(5) }
-    var longBreak               by remember { mutableStateOf(15) }
-    var soundType               by remember { mutableStateOf("Bell") }
-    var vibrateEnabled          by remember { mutableStateOf(true) }
-    var themeMode               by remember { mutableStateOf("System") }
-    var amoledMode              by remember { mutableStateOf(false) }
+    // ── Local V1 state (replace with DataStore in V2) ─────────────────────────
+    var autoStart       by remember { mutableStateOf(false) }
+    var sessionLength   by remember { mutableFloatStateOf(25f) }
+    var hapticFeedback  by remember { mutableStateOf(true) }
+    var volume          by remember { mutableFloatStateOf(0.7f) }
+    var themeMode       by remember { mutableStateOf("System") }
+    var monochrome      by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
+    Column(
+        modifier            = Modifier
+            .fillMaxSize()
+            .background(FocusColors.Background)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+
+        // ── 1. Glass top bar ──────────────────────────────────────────────────
+        SettingsTopBar()
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(innerPadding),
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
         ) {
+            Spacer(Modifier.height(16.dp))
 
-            // ── SECTION: Timer ────────────────────────────────────────────────
-            SectionHeader("Timer")
+            // ── 2. Pro Features card (solid dark, most prominent) ─────────────
+            ProFeaturesCard()
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Spacer(Modifier.height(20.dp))
 
-                // Sessions before long break
-                Text(
-                    text  = "Sessions before long break",
-                    style = MaterialTheme.typography.bodyMedium,
+            // ── 3. Timer section ──────────────────────────────────────────────
+            SectionLabel("TIMER")
+            Spacer(Modifier.height(8.dp))
+            GlassCard {
+                SettingsToggleRow(
+                    label   = "Auto-Start Next Session",
+                    checked = autoStart,
+                    onChanged = { autoStart = it },
                 )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(2, 3, 4, 6).forEach { option ->
-                        val selected = sessionsBeforeLongBreak == option
-                        TextButton(
-                            onClick  = { sessionsBeforeLongBreak = option },
-                            modifier = Modifier.border(
-                                width = 1.dp,
-                                color = if (selected) FocusColors.TomatoRed
-                                        else MaterialTheme.colorScheme.outline,
-                                shape = MaterialTheme.shapes.small,
-                            ),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (selected) FocusColors.TomatoRed
-                                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            ),
-                        ) {
-                            Text("$option")
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                // Short break duration
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically,
-                ) {
-                    Text("Short break", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text  = "${shortBreak}m",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FocusColors.TomatoRed,
-                    )
-                }
-                Slider(
-                    value         = shortBreak.toFloat(),
-                    onValueChange = { shortBreak = it.roundToInt() },
-                    valueRange    = 1f..15f,
-                    steps         = 13,            // integers 1..15 → 13 intermediate stops
-                    modifier      = Modifier.fillMaxWidth(),
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // Long break duration
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically,
-                ) {
-                    Text("Long break", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text  = "${longBreak}m",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FocusColors.TomatoRed,
-                    )
-                }
-                Slider(
-                    value         = longBreak.toFloat(),
-                    onValueChange = { longBreak = it.roundToInt() },
-                    valueRange    = 10f..30f,
-                    steps         = 19,            // integers 10..30 → 19 intermediate stops
-                    modifier      = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // ── SECTION: Sound & Haptics ──────────────────────────────────────
-            SectionHeader("Sound & Haptics")
-
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-
-                Text("Completion sound", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("None", "Bell", "Digital").forEach { option ->
-                        FilterChip(
-                            selected = soundType == option,
-                            onClick  = { soundType = option },
-                            label    = { Text(option) },
-                        )
-                    }
-                }
-
                 Spacer(Modifier.height(16.dp))
-
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically,
-                ) {
-                    Text("Vibrate on completion", style = MaterialTheme.typography.bodyMedium)
-                    Switch(
-                        checked         = vibrateEnabled,
-                        onCheckedChange = { vibrateEnabled = it },
-                    )
-                }
+                SettingsSliderRow(
+                    label     = "Session Length",
+                    value     = sessionLength,
+                    valueLabel = "${sessionLength.roundToInt()}m",
+                    range     = 5f..60f,
+                    steps     = 10,
+                    onChanged  = { sessionLength = it },
+                )
             }
 
-            // ── SECTION: Appearance ───────────────────────────────────────────
-            SectionHeader("Appearance")
+            Spacer(Modifier.height(20.dp))
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-
-                Text("Theme", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("System", "Light", "Dark").forEach { option ->
-                        val selected = themeMode == option
-                        TextButton(
-                            onClick  = {
-                                themeMode = option
-                                if (option != "Dark") amoledMode = false
-                            },
-                            modifier = Modifier.border(
-                                width = 1.dp,
-                                color = if (selected) FocusColors.TomatoRed
-                                        else MaterialTheme.colorScheme.outline,
-                                shape = MaterialTheme.shapes.small,
-                            ),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (selected) FocusColors.TomatoRed
-                                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            ),
-                        ) {
-                            Text(option)
-                        }
-                    }
-                }
-
-                // AMOLED mode — only meaningful in Dark theme
-                AnimatedVisibility(visible = themeMode == "Dark") {
-                    Row(
-                        modifier              = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment     = Alignment.CenterVertically,
-                    ) {
-                        Column {
-                            Text("AMOLED mode", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                text  = "True black saves battery on OLED screens",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            )
-                        }
-                        Switch(
-                            checked         = amoledMode,
-                            onCheckedChange = { amoledMode = it },
-                        )
-                    }
-                }
+            // ── 4. Sound & Haptics section ────────────────────────────────────
+            SectionLabel("SOUND & HAPTICS")
+            Spacer(Modifier.height(8.dp))
+            GlassCard {
+                SettingsToggleRow(
+                    label     = "Haptic Feedback",
+                    checked   = hapticFeedback,
+                    onChanged = { hapticFeedback = it },
+                )
+                Spacer(Modifier.height(16.dp))
+                SettingsSliderRow(
+                    label      = "Volume",
+                    value      = volume,
+                    valueLabel = "${(volume * 100).roundToInt()}%",
+                    range      = 0f..1f,
+                    steps      = 9,
+                    onChanged  = { volume = it },
+                )
             }
 
-            // ── SECTION: Pro Features ─────────────────────────────────────────
-            SectionHeader("Pro Features")
+            Spacer(Modifier.height(20.dp))
 
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .border(
-                        width = 1.5.dp,
-                        color = FocusColors.TomatoRed,
-                        shape = MaterialTheme.shapes.medium,
-                    ),
+            // ── 5. Appearance section ─────────────────────────────────────────
+            SectionLabel("APPEARANCE")
+            Spacer(Modifier.height(8.dp))
+            GlassCard {
+                Text(
+                    text     = "Theme",
+                    fontSize = 14.sp,
+                    color    = FocusColors.OnSurface,
+                )
+                Spacer(Modifier.height(10.dp))
+                ThemePillRow(
+                    selectedTheme = themeMode,
+                    onSelected    = { themeMode = it },
+                )
+                Spacer(Modifier.height(16.dp))
+                SettingsToggleRow(
+                    label     = "Monochrome Theme",
+                    checked   = monochrome,
+                    onChanged = { monochrome = it },
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── 6. About bento (2 square-ish cards) ───────────────────────────
+            SectionLabel("ABOUT")
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-
-                    Text(
-                        text  = "Unlock Pro — ₹149 once",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = FocusColors.TomatoRed,
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    listOf(
-                        "Unlimited session history",
-                        "10+ focus sounds",
-                        "AMOLED black mode",
-                        "CSV export",
-                    ).forEach { feature ->
-                        Row(
-                            modifier          = Modifier.padding(vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("✅", fontSize = 14.sp)
-                            Spacer(Modifier.width(8.dp))
-                            Text(feature, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    FilledTonalButton(
-                        onClick  = { /* TODO: wire to BillingClient in V2 */ },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Unlock Pro")
-                    }
-                }
+                AboutBentoCard(
+                    modifier = Modifier.weight(1f),
+                    icon     = Icons.Outlined.Help,
+                    title    = "Support",
+                    subtitle = "Help Center & Guides",
+                )
+                AboutBentoCard(
+                    modifier = Modifier.weight(1f),
+                    icon     = Icons.Outlined.Share,
+                    title    = "Referral",
+                    subtitle = "Invite your friends",
+                )
             }
-
-            // ── SECTION: About ────────────────────────────────────────────────
-            SectionHeader("About")
-
-            ListItem(
-                headlineContent  = { Text("Version") },
-                trailingContent  = {
-                    Text(
-                        text  = "1.0.0",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                },
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-            ListItem(
-                headlineContent  = { Text("Rate on Play Store") },
-                trailingContent  = {
-                    Icon(
-                        imageVector        = Icons.Outlined.OpenInNew,
-                        contentDescription = null,
-                        tint               = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                },
-                modifier = Modifier.clickable { /* TODO: open Play Store listing */ },
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-            ListItem(
-                headlineContent  = { Text("Privacy Policy") },
-                trailingContent  = {
-                    Icon(
-                        imageVector        = Icons.Outlined.OpenInNew,
-                        contentDescription = null,
-                        tint               = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                },
-                modifier = Modifier.clickable { /* TODO: open privacy policy URL */ },
-            )
 
             Spacer(Modifier.height(32.dp))
+
+            // ── 7. Version footer ─────────────────────────────────────────────
+            Text(
+                text      = "FOCUSFIRST V1.0.0",
+                fontSize  = 12.sp,
+                letterSpacing = 1.sp,
+                color     = Color.White.copy(alpha = 0.2f),
+                textAlign = TextAlign.Center,
+                modifier  = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
 // ============================================================================
-// SectionHeader
+// Sub-composables
 // ============================================================================
 
-/**
- * Reusable section divider used throughout [SettingsScreen].
- *
- * Renders the [title] in ALL CAPS with [FocusColors.TomatoRed], followed by
- * a full-width [HorizontalDivider].  Padding matches Material 3 list-section
- * header conventions (top 24 dp, bottom 8 dp, sides 16 dp).
- */
+// ── Glass top bar ─────────────────────────────────────────────────────────────
+
 @Composable
-fun SectionHeader(title: String) {
-    Column {
+private fun SettingsTopBar() {
+    Box(
+        modifier         = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.08f))
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
-            text     = title.uppercase(),
-            style    = MaterialTheme.typography.labelLarge,
-            color    = FocusColors.TomatoRed,
-            modifier = Modifier.padding(
-                start  = 16.dp,
-                end    = 16.dp,
-                top    = 24.dp,
-                bottom = 8.dp,
+            text       = "Settings",
+            fontSize   = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            color      = Color.White,
+        )
+    }
+}
+
+// ── Pro features card ─────────────────────────────────────────────────────────
+
+@Composable
+private fun ProFeaturesCard() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = FocusColors.SurfaceContainerLow,
+                shape = RoundedCornerShape(20.dp),
+            )
+            .padding(20.dp),
+    ) {
+        Text(
+            text       = "PRO FEATURES",
+            fontSize   = 10.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 1.5.sp,
+            color      = FocusColors.TomatoRed.copy(alpha = 0.8f),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text       = "Unlock Pro",
+            fontSize   = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            color      = Color.White,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text     = "Access custom focus sounds, detailed analytics\nand more across all devices.",
+            fontSize = 13.sp,
+            color    = FocusColors.OnSurfaceVariant,
+        )
+        Spacer(Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(50.dp))
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text       = "Upgrade Now",
+                fontSize   = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color      = Color.Black,
+            )
+        }
+    }
+}
+
+// ── Glass card container ──────────────────────────────────────────────────────
+
+private val GlassShape  = RoundedCornerShape(16.dp)
+private val GlassBg     = Color.White.copy(alpha = 0.07f)
+private val GlassBorder = Color.White.copy(alpha = 0.1f)
+
+@Composable
+private fun GlassCard(content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(GlassBg, GlassShape)
+            .border(1.dp, GlassBorder, GlassShape)
+            .padding(16.dp),
+    ) {
+        content()
+    }
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text          = text,
+        fontSize      = 10.sp,
+        fontWeight    = FontWeight.Medium,
+        letterSpacing = 1.5.sp,
+        color         = Color.White.copy(alpha = 0.4f),
+    )
+}
+
+// ── Toggle row ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun SettingsToggleRow(
+    label:     String,
+    checked:   Boolean,
+    onChanged: (Boolean) -> Unit,
+) {
+    Row(
+        modifier              = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment     = Alignment.CenterVertically,
+    ) {
+        Text(
+            text     = label,
+            fontSize = 15.sp,
+            color    = FocusColors.OnSurface,
+        )
+        Switch(
+            checked         = checked,
+            onCheckedChange = onChanged,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor       = Color.Black,
+                checkedTrackColor       = Color.White,
+                uncheckedThumbColor     = FocusColors.OnSurfaceVariant,
+                uncheckedTrackColor     = FocusColors.SurfaceContainerHighest,
+                uncheckedBorderColor    = FocusColors.OutlineVariant,
             ),
         )
-        HorizontalDivider()
+    }
+}
+
+// ── Slider row ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun SettingsSliderRow(
+    label:      String,
+    value:      Float,
+    valueLabel: String,
+    range:      ClosedFloatingPointRange<Float>,
+    steps:      Int,
+    onChanged:  (Float) -> Unit,
+) {
+    Row(
+        modifier              = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment     = Alignment.CenterVertically,
+    ) {
+        Text(
+            text     = label,
+            fontSize = 15.sp,
+            color    = FocusColors.OnSurface,
+        )
+        Text(
+            text     = valueLabel,
+            fontSize = 14.sp,
+            color    = FocusColors.OnSurfaceVariant,
+        )
+    }
+    Slider(
+        value         = value,
+        onValueChange = onChanged,
+        valueRange    = range,
+        steps         = steps,
+        modifier      = Modifier.fillMaxWidth(),
+        colors = SliderDefaults.colors(
+            thumbColor           = Color.White,
+            activeTrackColor     = Color.White,
+            inactiveTrackColor   = Color.White.copy(alpha = 0.2f),
+        ),
+    )
+}
+
+// ── Theme pill row ────────────────────────────────────────────────────────────
+
+@Composable
+private fun ThemePillRow(
+    selectedTheme: String,
+    onSelected:    (String) -> Unit,
+) {
+    val options = listOf("System", "Dark", "Light")
+    Row(
+        modifier              = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(50.dp)),
+        horizontalArrangement = Arrangement.spacedBy(0.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selectedTheme
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        color = if (isSelected) Color.White else Color.Transparent,
+                        shape = RoundedCornerShape(50.dp),
+                    )
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text       = option,
+                    fontSize   = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color      = if (isSelected) Color.Black else Color.White.copy(alpha = 0.5f),
+                )
+            }
+        }
+    }
+}
+
+// ── About bento card ──────────────────────────────────────────────────────────
+
+@Composable
+private fun AboutBentoCard(
+    modifier:  Modifier,
+    icon:      ImageVector,
+    title:     String,
+    subtitle:  String,
+) {
+    Column(
+        modifier = modifier
+            .background(GlassBg, GlassShape)
+            .border(1.dp, GlassBorder, GlassShape)
+            .padding(16.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector        = icon,
+                contentDescription = null,
+                tint               = Color.White.copy(alpha = 0.8f),
+                modifier           = Modifier.size(18.dp),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text       = title,
+            fontSize   = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color      = Color.White,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text     = subtitle,
+            fontSize = 11.sp,
+            color    = FocusColors.OnSurfaceVariant,
+        )
     }
 }

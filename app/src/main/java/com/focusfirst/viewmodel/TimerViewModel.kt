@@ -89,6 +89,15 @@ class TimerViewModel @Inject constructor(
             initialValue  = 0,
         )
 
+    /** Five most-recent sessions (any status), newest first. */
+    val recentSessions: StateFlow<List<SessionEntity>> = sessionDao
+        .observeRecentSessions(limit = 5)
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList(),
+        )
+
     /**
      * Per-day aggregates for the trailing 7 days.
      * Ordered newest-first by [DailySummary.date] (epoch-day).
