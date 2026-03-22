@@ -1,4 +1,4 @@
-package com.focusfirst.ui.screen
+package com.focusfirst.ui.screens
 
 import android.content.Context
 import android.content.Intent

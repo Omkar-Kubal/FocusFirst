@@ -20,9 +20,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.focusfirst.ui.screen.HomeScreen
-import com.focusfirst.ui.screen.SettingsScreen
-import com.focusfirst.ui.screen.StatsScreen
+import com.focusfirst.ui.screens.HomeScreen
+import com.focusfirst.ui.screens.SettingsScreen
+import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
 import dagger.hilt.android.AndroidEntryPoint
 

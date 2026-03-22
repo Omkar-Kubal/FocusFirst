@@ -1,4 +1,4 @@
-package com.focusfirst.ui.screen
+package com.focusfirst.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
