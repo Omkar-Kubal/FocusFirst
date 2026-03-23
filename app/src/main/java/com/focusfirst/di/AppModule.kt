@@ -1,7 +1,11 @@
 package com.focusfirst.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
+import com.focusfirst.data.SettingsRepository
+import com.focusfirst.data.focusFirstSettingsDataStore
 import com.focusfirst.data.db.FocusDatabase
 import com.focusfirst.data.db.SessionDao
 import dagger.Module
@@ -12,14 +16,14 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Hilt module that wires the Room database and its DAOs into the DI graph.
+ * Hilt module that wires the Room database, its DAOs, and the DataStore
+ * settings repository into the DI graph.
  *
- * Both bindings are @Singleton:
- *   - [FocusDatabase] — one Room instance per process lifetime.
- *   - [SessionDao]    — stateless DAO backed by the singleton database.
+ * All bindings are [@Singleton]: one instance per process lifetime.
  *
  * Usage in a ViewModel or Service:
  *   @Inject lateinit var sessionDao: SessionDao
+ *   @Inject lateinit var settingsRepository: SettingsRepository
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -39,4 +43,16 @@ object AppModule {
     @Singleton
     fun provideSessionDao(database: FocusDatabase): SessionDao =
         database.sessionDao()
+
+    @Provides
+    @Singleton
+    fun providePreferencesDataStore(
+        @ApplicationContext context: Context,
+    ): DataStore<Preferences> = context.focusFirstSettingsDataStore
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(
+        dataStore: DataStore<Preferences>,
+    ): SettingsRepository = SettingsRepository(dataStore)
 }

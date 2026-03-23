@@ -47,4 +47,8 @@ data class TimerState(
             val seconds = remainingSeconds % 60
             return "%02d:%02d".format(minutes, seconds)
         }
+
+    /** True when the timer is neither running nor paused (idle / reset state). */
+    val isIdle: Boolean
+        get() = !isRunning && !isPaused
 }

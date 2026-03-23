@@ -43,7 +43,6 @@ data class SessionEntity(
  * Aggregated data for a single calendar day, returned by [SessionDao.observeWeeklySummary].
  *
  * [date] is an *epoch-day* (startedAt / 86_400_000), not epoch-milliseconds.
- * Consumers can convert: `epochDay * 86_400_000L` → start-of-day UTC millis.
  *
  * Column alias names in the SQL query **must** match these field names exactly
  * so Room's cursor-to-POJO mapping works without a dedicated TypeConverter.
@@ -78,17 +77,26 @@ interface SessionDao {
     fun observeAll(): Flow<List<SessionEntity>>
 
     /**
+     * Five most-recent sessions regardless of completion status, newest first.
+     * Used by TimerViewModel.recentSessions and the Stats screen.
+     */
+    @Query("SELECT * FROM sessions ORDER BY startedAt DESC LIMIT 5")
+    fun observeRecent(): Flow<List<SessionEntity>>
+
+    /**
+     * Most-recent [limit] sessions regardless of completion status, newest first.
+     * Kept for flexibility; prefer [observeRecent] for the default UI limit.
+     */
+    @Query("SELECT * FROM sessions ORDER BY startedAt DESC LIMIT :limit")
+    fun observeRecentSessions(limit: Int): Flow<List<SessionEntity>>
+
+    /**
      * Per-day aggregates for completed sessions on or after [sinceEpochMs].
      *
      * Groups by calendar-day bucket (`startedAt / 86_400_000`) so the result
      * is timezone-agnostic at the SQLite level; callers convert to local days
      * as needed.  Ordered newest-day first so the stats chart can read
      * index 0 as "today".
-     *
-     * SQL breakdown:
-     *   - `(startedAt / 86400000) AS date`   → integer day bucket
-     *   - `COUNT(*) AS sessionCount`          → sessions that day
-     *   - `SUM(durationSeconds) / 60 AS totalMinutes` → integer-floor minutes
      */
     @Query("""
         SELECT (startedAt / 86400000)      AS date,
@@ -105,10 +113,6 @@ interface SessionDao {
     /** Running total of sessions the user has ever completed. */
     @Query("SELECT COUNT(*) FROM sessions WHERE wasCompleted = 1")
     fun observeTotalCompleted(): Flow<Int>
-
-    /** Most-recent [limit] sessions regardless of completion status, newest first. */
-    @Query("SELECT * FROM sessions ORDER BY startedAt DESC LIMIT :limit")
-    fun observeRecentSessions(limit: Int): Flow<List<SessionEntity>>
 
     /**
      * Number of sessions (any status) that started on or after [todayStartMs].

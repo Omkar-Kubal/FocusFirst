@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.focusfirst.data.SettingsRepository
 import com.focusfirst.data.db.DailySummary
 import com.focusfirst.data.db.SessionDao
 import com.focusfirst.data.db.SessionEntity
@@ -35,73 +36,75 @@ import javax.inject.Inject
 // TimerViewModel
 //
 // Single source of truth for all timer UI state.  Coordinates between:
-//   - TimerForegroundService (issues commands, receives tick/finish broadcasts)
-//   - Room / SessionDao           (persists completed + partial sessions)
-//   - Compose UI                  (exposes StateFlows)
+//   - TimerForegroundService  (issues commands, receives tick/finish broadcasts)
+//   - SettingsRepository      (drives durations — focus / short break / long break)
+//   - Room / SessionDao        (persists completed + partial sessions)
+//   - Compose UI               (exposes StateFlows)
 //
-// Broadcast wiring: the service emits via LocalBroadcastManager (process-local,
-// inherently equivalent to RECEIVER_NOT_EXPORTED).  The ViewModel registers
-// with the same LocalBroadcastManager in init{} and unregisters in onCleared().
+// Settings are read at phase-launch time via Eagerly-started StateFlows so
+// that .value is always fresh.  Changing a break duration in Settings will
+// take effect on the NEXT phase transition — exactly as the user expects.
 // ---------------------------------------------------------------------------
 
 @HiltViewModel
 class TimerViewModel @Inject constructor(
     private val application: Application,
     private val sessionDao: SessionDao,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     // ── LocalBroadcastManager ─────────────────────────────────────────────────
-    // Cached at construction; used to register/unregister timerReceiver.
     private val localBroadcastManager: LocalBroadcastManager =
         LocalBroadcastManager.getInstance(application)
+
+    // ========================================================================
+    // Settings — Eagerly started so .value is always up-to-date
+    // ========================================================================
+
+    private val focusMinutesFlow = settingsRepository.focusMinutes
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 25)
+
+    private val shortBreakMinutesFlow = settingsRepository.shortBreakMinutes
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 5)
+
+    private val longBreakMinutesFlow = settingsRepository.longBreakMinutes
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 15)
+
+    private val sessionsBeforeLongBreakFlow = settingsRepository.sessionsBeforeLongBreak
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 4)
 
     // ========================================================================
     // Exposed StateFlows
     // ========================================================================
 
-    // Primary timer state — mutated by broadcast ticks, action functions,
-    // and the phase-lifecycle logic.
     private val _timerState = MutableStateFlow(TimerState())
     val timerState: StateFlow<TimerState> = _timerState.asStateFlow()
 
-    /**
-     * Number of sessions (any completion status) that started today.
-     * Derived from Room; re-emits on every insert / delete.
-     *
-     * [todayStartMs] is computed once at ViewModel creation.  If the app
-     * stays alive past midnight the value drifts by at most one day —
-     * acceptable for V1; a DateChangeReceiver can fix this in V2.
-     */
     val todayCount: StateFlow<Int> = sessionDao
         .observeTodayCount(todayStartMs())
         .stateIn(
-            scope         = viewModelScope,
-            started       = SharingStarted.WhileSubscribed(5_000L),
-            initialValue  = 0,
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = 0,
         )
 
-    /** Running total of all-time completed focus sessions. */
     val totalCompleted: StateFlow<Int> = sessionDao
         .observeTotalCompleted()
         .stateIn(
-            scope         = viewModelScope,
-            started       = SharingStarted.WhileSubscribed(5_000L),
-            initialValue  = 0,
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = 0,
         )
 
     /** Five most-recent sessions (any status), newest first. */
     val recentSessions: StateFlow<List<SessionEntity>> = sessionDao
-        .observeRecentSessions(limit = 5)
+        .observeRecent()
         .stateIn(
             scope        = viewModelScope,
             started      = SharingStarted.WhileSubscribed(5_000L),
             initialValue = emptyList(),
         )
 
-    /**
-     * Per-day aggregates for the trailing 7 days.
-     * Ordered newest-first by [DailySummary.date] (epoch-day).
-     */
     val weeklySummary: StateFlow<List<DailySummary>> = sessionDao
         .observeWeeklySummary(sinceEpochMs = System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L)
         .stateIn(
@@ -114,29 +117,18 @@ class TimerViewModel @Inject constructor(
     // Private session-tracking fields
     // ========================================================================
 
-    /**
-     * Epoch-ms recorded when the current session began.
-     * 0 means no session is active (idle or just after save).
-     */
     private var sessionStartMs: Long = 0L
 
     /**
-     * Cumulative count of FOCUS phases completed in the current continuous run.
-     * Drives the short-break / long-break decision.
+     * Cumulative count of FOCUS phases completed in the current Pomodoro cycle.
+     * Reset to 0 after every LONG_BREAK so the cycle repeats correctly.
      */
     private var sessionCount: Int = 0
-
-    /** A long break is inserted every N focus sessions. */
-    private val sessionsBeforeLongBreak: Int = 4
 
     // ========================================================================
     // Broadcast receiver
     // ========================================================================
 
-    /**
-     * Receives second-by-second ticks and phase-finished signals from
-     * [TimerForegroundService] via [LocalBroadcastManager].
-     */
     private val timerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -151,18 +143,10 @@ class TimerViewModel @Inject constructor(
     }
 
     init {
-        // Register for both broadcast actions with a single receiver instance.
-        // LocalBroadcastManager is process-local — no exported flag is needed.
         val filter = IntentFilter().apply {
             addAction(TimerForegroundService.BROADCAST_TICK)
             addAction(TimerForegroundService.BROADCAST_FINISHED)
         }
-        // NOTE: LocalBroadcastManager.registerReceiver is used (not
-        // ContextCompat.registerReceiver) because the service sends via
-        // LocalBroadcastManager.sendBroadcast().  The two mechanisms are
-        // separate channels — mixing them would silently drop broadcasts.
-        // Process-locality provides the same security guarantee as
-        // RECEIVER_NOT_EXPORTED.
         localBroadcastManager.registerReceiver(timerReceiver, filter)
         Log.d(TAG, "init: BroadcastReceiver registered")
     }
@@ -172,14 +156,13 @@ class TimerViewModel @Inject constructor(
     // ========================================================================
 
     /**
-     * Starts a fresh FOCUS session using [preset].
+     * Starts a fresh FOCUS session.
      *
-     * If the timer is already running the caller should [stop] first; this
-     * function does not guard against double-starts (the service is
-     * idempotent on ACTION_START).
+     * Duration is driven by [SettingsRepository.focusMinutes] — not the
+     * preset's built-in value — so the user's custom setting always wins.
      */
     fun start(preset: IntervalPreset = _timerState.value.preset) {
-        val durationSeconds = preset.focusMinutes * 60
+        val durationSeconds = focusMinutesFlow.value * 60
         sessionStartMs = System.currentTimeMillis()
 
         _timerState.update { current ->
@@ -193,8 +176,8 @@ class TimerViewModel @Inject constructor(
             )
         }
 
-        TimerAlarmWorker.resetCompletionFlag(application)                          // LINE 1
-        scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)              // LINE 2
+        TimerAlarmWorker.resetCompletionFlag(application)
+        scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)
 
         ContextCompat.startForegroundService(
             application,
@@ -203,19 +186,11 @@ class TimerViewModel @Inject constructor(
         Log.d(TAG, "start preset=$preset duration=${durationSeconds}s")
     }
 
-    /**
-     * Pauses the running timer.
-     * The service cancels its coroutine and broadcasts a final tick with
-     * isRunning=false so the UI updates immediately.
-     */
     fun pause() {
         Log.d(TAG, "pause")
         sendServiceAction(TimerForegroundService.ACTION_PAUSE)
     }
 
-    /**
-     * Resumes a paused timer from the remaining seconds saved in the service.
-     */
     fun resume() {
         Log.d(TAG, "resume")
         sendServiceAction(TimerForegroundService.ACTION_RESUME)
@@ -224,10 +199,8 @@ class TimerViewModel @Inject constructor(
     /**
      * Stops the timer unconditionally.
      *
-     * If the session has been running for more than 30 seconds it is saved
-     * to Room as an incomplete session ([wasCompleted] = false).
-     * Sessions shorter than 30 s are considered accidental starts and are
-     * discarded to keep the stats clean.
+     * Saves a partial session to Room if the user focused for more than 30 s.
+     * Sessions shorter than 30 s are considered accidental starts and discarded.
      */
     fun stop() {
         if (sessionStartMs > 0L) {
@@ -236,30 +209,29 @@ class TimerViewModel @Inject constructor(
                 saveSession(wasCompleted = false, phase = _timerState.value.phase)
             }
         }
-        // Unconditional reset — saveSession nulls sessionStartMs if it ran,
-        // but we guard here in case it didn't (elapsed ≤ 30 s).
         sessionStartMs = 0L
 
-        cancelAlarm(application)                                                   // LINE 3
-
+        cancelAlarm(application)
         sendServiceAction(TimerForegroundService.ACTION_STOP)
-        _timerState.value = TimerState()  // Return to idle defaults
+        _timerState.value = TimerState()
         Log.d(TAG, "stop")
     }
 
     /**
-     * Switches the active preset.  Only applies when the timer is idle
-     * (not running and not paused) — otherwise silently ignored.
+     * Switches the active preset when the timer is idle.
+     * The idle display time reflects the current [SettingsRepository.focusMinutes]
+     * value so it stays consistent regardless of the selected preset label.
      */
     fun selectPreset(preset: IntervalPreset) {
         val state = _timerState.value
         if (state.isRunning || state.isPaused) return
 
+        val focusSeconds = focusMinutesFlow.value * 60
         _timerState.update { current ->
             current.copy(
                 preset           = preset,
-                totalSeconds     = preset.focusMinutes * 60,
-                remainingSeconds = preset.focusMinutes * 60,
+                totalSeconds     = focusSeconds,
+                remainingSeconds = focusSeconds,
             )
         }
         Log.d(TAG, "selectPreset $preset")
@@ -269,13 +241,6 @@ class TimerViewModel @Inject constructor(
     // Private — broadcast handling
     // ========================================================================
 
-    /**
-     * Processes a BROADCAST_TICK from the service.
-     *
-     * [isPaused] is set only when the clock has time remaining but the
-     * coroutine is not running — ruling out the idle-at-zero case where
-     * [isRunning]=false and [remainingSeconds]=0 (e.g. post-stop tick).
-     */
     private fun handleTick(intent: Intent) {
         val remaining = intent.getIntExtra(TimerForegroundService.EXTRA_REMAINING_SECONDS, 0)
         val running   = intent.getBooleanExtra(TimerForegroundService.EXTRA_IS_RUNNING, false)
@@ -298,14 +263,15 @@ class TimerViewModel @Inject constructor(
     // ========================================================================
 
     /**
-     * Called when [TimerForegroundService] signals that a phase completed
-     * (either naturally or via ACTION_SKIP).
+     * Called when [TimerForegroundService] signals phase completion.
      *
      * Sequence:
      *   1. Persist the completed FOCUS session (breaks are not recorded).
      *   2. Advance the focus counter.
-     *   3. Choose the next phase based on the counter modulo [sessionsBeforeLongBreak].
-     *   4. Auto-start the next phase.
+     *   3. Choose the next phase: SHORT_BREAK → every N sessions → LONG_BREAK.
+     *   4. Auto-start the next phase with duration from [SettingsRepository].
+     *
+     * LONG_BREAK completion resets [sessionCount] so the Pomodoro cycle repeats.
      */
     private fun onPhaseFinished(phaseString: String) {
         val phase = runCatching { TimerPhase.valueOf(phaseString) }.getOrElse {
@@ -319,18 +285,26 @@ class TimerViewModel @Inject constructor(
             _timerState.update { it.copy(sessionsCompleted = it.sessionsCompleted + 1) }
         }
 
+        val sessionsBeforeLong = sessionsBeforeLongBreakFlow.value
+
         val nextPhase = when (phase) {
             TimerPhase.FOCUS ->
-                if (sessionCount % sessionsBeforeLongBreak == 0) TimerPhase.LONG_BREAK
+                if (sessionCount % sessionsBeforeLong == 0) TimerPhase.LONG_BREAK
                 else TimerPhase.SHORT_BREAK
-            TimerPhase.SHORT_BREAK,
-            TimerPhase.LONG_BREAK -> TimerPhase.FOCUS
+
+            TimerPhase.SHORT_BREAK -> TimerPhase.FOCUS
+
+            TimerPhase.LONG_BREAK -> {
+                // Reset the cycle so the user gets N short breaks before the next long break.
+                sessionCount = 0
+                TimerPhase.FOCUS
+            }
         }
 
         val nextDurationSeconds = when (nextPhase) {
-            TimerPhase.FOCUS       -> _timerState.value.preset.focusMinutes * 60
-            TimerPhase.SHORT_BREAK -> BREAK_SHORT_SECONDS
-            TimerPhase.LONG_BREAK  -> BREAK_LONG_SECONDS
+            TimerPhase.FOCUS       -> focusMinutesFlow.value * 60
+            TimerPhase.SHORT_BREAK -> shortBreakMinutesFlow.value * 60
+            TimerPhase.LONG_BREAK  -> longBreakMinutesFlow.value * 60
         }
 
         Log.d(TAG, "onPhaseFinished phase=$phase → next=$nextPhase (${nextDurationSeconds}s) sessionCount=$sessionCount")
@@ -339,11 +313,8 @@ class TimerViewModel @Inject constructor(
 
     /**
      * Updates [_timerState] and starts [TimerForegroundService] for any phase.
-     *
-     * Called by [onPhaseFinished] to auto-advance through the Pomodoro cycle.
-     * Unlike the public [start] (which is FOCUS-only and preset-driven),
-     * this function accepts any [TimerPhase] and an explicit duration — allowing
-     * break phases to use their fixed durations.
+     * Also schedules the WorkManager alarm watchdog so phase completion is
+     * reliable even if the process is killed.
      */
     private fun launchPhase(phase: TimerPhase, durationSeconds: Int) {
         sessionStartMs = System.currentTimeMillis()
@@ -358,6 +329,9 @@ class TimerViewModel @Inject constructor(
             )
         }
 
+        TimerAlarmWorker.resetCompletionFlag(application)
+        scheduleAlarm(application, durationSeconds, phase)
+
         ContextCompat.startForegroundService(
             application,
             TimerForegroundService.buildStartIntent(application, durationSeconds, phase),
@@ -368,25 +342,10 @@ class TimerViewModel @Inject constructor(
     // Private — persistence
     // ========================================================================
 
-    /**
-     * Inserts a [SessionEntity] into Room for the session that began at
-     * [sessionStartMs].
-     *
-     * [sessionStartMs] is zeroed out *before* the coroutine launches so that
-     * a rapid double-call (e.g. stop() + onPhaseFinished race) cannot produce
-     * a duplicate insert.
-     *
-     * Duration is wall-clock elapsed time, so it correctly accounts for any
-     * paused intervals that weren't tracked by the service.
-     *
-     * @param wasCompleted true for a session that ran to natural completion.
-     * @param phase        the phase being saved (captured by caller to avoid
-     *                     a TOCTOU race with [_timerState] updates).
-     */
     private fun saveSession(wasCompleted: Boolean, phase: TimerPhase) {
         val startMs = sessionStartMs
-        sessionStartMs = 0L            // Zero before launch — prevents double-insert
-        if (startMs == 0L) return      // Guard: no active session to save
+        sessionStartMs = 0L         // Zero before launch — prevents double-insert
+        if (startMs == 0L) return   // Guard: no active session to save
 
         val durationSeconds = ((System.currentTimeMillis() - startMs) / 1000L).toInt()
         val tag = when (phase) {
@@ -406,7 +365,7 @@ class TimerViewModel @Inject constructor(
                     )
                 )
             }.onFailure { Log.e(TAG, "Failed to save session", it) }
-                .onSuccess { Log.d(TAG, "Saved session tag=$tag completed=$wasCompleted duration=${durationSeconds}s") }
+             .onSuccess { Log.d(TAG, "Saved session tag=$tag completed=$wasCompleted duration=${durationSeconds}s") }
         }
     }
 
@@ -414,13 +373,6 @@ class TimerViewModel @Inject constructor(
     // Private — service communication
     // ========================================================================
 
-    /**
-     * Sends an action intent to [TimerForegroundService].
-     *
-     * Uses [Context.startService] (not startForegroundService) for non-start
-     * commands: the service is already running as a foreground service, so
-     * only ACTION_START needs the foreground-service guarantee.
-     */
     private fun sendServiceAction(action: String) {
         val intent = Intent(application, TimerForegroundService::class.java).apply {
             this.action = action
@@ -439,23 +391,12 @@ class TimerViewModel @Inject constructor(
     }
 
     // ========================================================================
-    // Companion object — constants + helpers
+    // Companion
     // ========================================================================
 
     companion object {
         private const val TAG = "TimerViewModel"
 
-        /** Fixed break durations for V1. Expose as settings in V2. */
-        private const val BREAK_SHORT_SECONDS = 5  * 60   // 5 minutes
-        private const val BREAK_LONG_SECONDS  = 15 * 60   // 15 minutes
-
-        /**
-         * Returns the epoch-millisecond timestamp for today's midnight
-         * in the device's local time zone.
-         *
-         * Used to filter [SessionDao.observeTodayCount] on ViewModel creation.
-         * Computed once per ViewModel instance — acceptable for V1.
-         */
         fun todayStartMs(): Long = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE,      0)

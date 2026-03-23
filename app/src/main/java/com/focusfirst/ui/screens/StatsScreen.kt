@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
@@ -26,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -39,37 +39,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.focusfirst.data.db.DailySummary
 import com.focusfirst.data.db.SessionEntity
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.viewmodel.TimerViewModel
 import java.time.LocalDate
-import java.time.format.TextStyle
-import java.util.Calendar
-import java.util.Locale
 
 // ============================================================================
-// StatsScreen — "The Focused Void" redesign
+// StatsScreen
 // ============================================================================
 
 @Composable
 fun StatsScreen(viewModel: TimerViewModel = hiltViewModel()) {
+
     val todayCount     by viewModel.todayCount.collectAsStateWithLifecycle()
     val totalCompleted by viewModel.totalCompleted.collectAsStateWithLifecycle()
     val weeklySummary  by viewModel.weeklySummary.collectAsStateWithLifecycle()
     val recentSessions by viewModel.recentSessions.collectAsStateWithLifecycle()
 
-    // Chart: 7-entry list ordered oldest → newest
-    val chartData = remember(weeklySummary) { buildChartData(weeklySummary) }
-    val chartMax  = remember(chartData) {
-        chartData.maxOfOrNull { it.second }.takeIf { it != null && it > 0 } ?: 1
-    }
+    // Weekly mastery: progress toward today's goal of 8 sessions
+    val masteryPct = (todayCount / 8f * 100).coerceAtMost(100f).toInt()
 
-    // Weekly mastery = fraction of last 7 days that had at least 1 session
-    val masteryPct = remember(weeklySummary) {
-        val activeDays = weeklySummary.count { it.sessionCount > 0 }
-        ((activeDays.toFloat() / 7f) * 100).toInt()
+    // 7-day chart data — ordered oldest (index 0) → today (index 6)
+    val todayEpochDay = System.currentTimeMillis() / 86_400_000L
+    val days = (6 downTo 0).map { offset ->
+        val day   = todayEpochDay - offset
+        val count = weeklySummary.find { it.date == day }?.sessionCount ?: 0
+        Pair(day, count)
     }
+    val maxCount = days.maxOfOrNull { it.second }.let { if (it != null && it > 0) it else 1 }
 
     Column(
         modifier = Modifier
@@ -77,40 +74,39 @@ fun StatsScreen(viewModel: TimerViewModel = hiltViewModel()) {
             .background(FocusColors.Background)
             .verticalScroll(rememberScrollState()),
     ) {
-
-        // ── 1. Glass top bar ──────────────────────────────────────────────────
         StatsTopBar()
 
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        if (totalCompleted == 0) {
+            EmptyStatsState()
+        } else {
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
 
-            Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(12.dp))
 
-            // ── 2. Weekly mastery ─────────────────────────────────────────────
-            WeeklyMasterySection(masteryPct = masteryPct)
+                WeeklyMasterySection(masteryPct = masteryPct)
 
-            Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(20.dp))
 
-            // ── 3. Summary cards (2-column grid) ──────────────────────────────
-            SummaryCardsRow(
-                todayCount     = todayCount,
-                totalCompleted = totalCompleted,
-            )
+                SummaryCardsRow(
+                    todayCount     = todayCount,
+                    totalCompleted = totalCompleted,
+                )
 
-            Spacer(Modifier.height(24.dp))
-
-            // ── 4. Last 7 days bar chart ──────────────────────────────────────
-            VoidChartSection(
-                chartData = chartData,
-                chartMax  = chartMax,
-            )
-
-            // ── 5. Recent intervals ───────────────────────────────────────────
-            if (recentSessions.isNotEmpty()) {
                 Spacer(Modifier.height(24.dp))
-                RecentIntervalsSection(sessions = recentSessions)
-            }
 
-            Spacer(Modifier.height(24.dp))
+                BarChartSection(
+                    days         = days,
+                    maxCount     = maxCount,
+                    todayEpochDay = todayEpochDay,
+                )
+
+                if (recentSessions.isNotEmpty()) {
+                    Spacer(Modifier.height(24.dp))
+                    RecentIntervalsSection(sessions = recentSessions)
+                }
+
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -119,7 +115,7 @@ fun StatsScreen(viewModel: TimerViewModel = hiltViewModel()) {
 // Sub-composables
 // ============================================================================
 
-// ── Glass top bar ─────────────────────────────────────────────────────────────
+// ── Top bar ───────────────────────────────────────────────────────────────────
 
 @Composable
 private fun StatsTopBar() {
@@ -131,7 +127,6 @@ private fun StatsTopBar() {
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        // Left spacer — matches width of right IconButton to keep title centred
         Box(modifier = Modifier.size(48.dp))
 
         Text(
@@ -148,6 +143,40 @@ private fun StatsTopBar() {
                 tint               = Color.White.copy(alpha = 0.7f),
             )
         }
+    }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyStatsState() {
+    Column(
+        modifier            = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector        = Icons.Outlined.BarChart,
+            contentDescription = null,
+            tint               = Color.White.copy(alpha = 0.2f),
+            modifier           = Modifier.size(64.dp),
+        )
+        Spacer(Modifier.height(20.dp))
+        Text(
+            text       = "No sessions yet",
+            fontSize   = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            color      = Color.White.copy(alpha = 0.6f),
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text      = "Complete your first focus session\nto see your stats here.",
+            fontSize  = 14.sp,
+            color     = Color.White.copy(alpha = 0.35f),
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -171,8 +200,6 @@ private fun WeeklyMasterySection(masteryPct: Int) {
             color      = Color.White,
         )
         Spacer(Modifier.height(8.dp))
-
-        // Full-width progress bar — 2 dp, white track + white fill
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -202,26 +229,26 @@ private fun SummaryCardsRow(todayCount: Int, totalCompleted: Int) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         GlassSummaryCard(
-            modifier  = Modifier.weight(1f),
-            label     = "SESSIONS TODAY",
-            value     = todayCount.toString(),
-            subLabel  = if (todayCount > 0) "+${todayCount} today" else "Start your first",
+            modifier = Modifier.weight(1f),
+            label    = "SESSIONS TODAY",
+            value    = todayCount.toString(),
+            subLabel = if (todayCount > 0) "+$todayCount today" else "Start your first",
         )
         GlassSummaryCard(
-            modifier  = Modifier.weight(1f),
-            label     = "TOTAL SESSIONS",
-            value     = totalCompleted.toString(),
-            subLabel  = if (totalCompleted >= 100) "Top 5% of users" else "Keep it up!",
+            modifier = Modifier.weight(1f),
+            label    = "TOTAL SESSIONS",
+            value    = totalCompleted.toString(),
+            subLabel = if (totalCompleted >= 100) "Top 5% of users" else "Keep it up!",
         )
     }
 }
 
 @Composable
 private fun GlassSummaryCard(
-    modifier:  Modifier,
-    label:     String,
-    value:     String,
-    subLabel:  String,
+    modifier: Modifier,
+    label:    String,
+    value:    String,
+    subLabel: String,
 ) {
     Column(
         modifier = modifier
@@ -245,22 +272,21 @@ private fun GlassSummaryCard(
         )
         Spacer(Modifier.height(2.dp))
         Text(
-            text       = subLabel,
-            fontSize   = 12.sp,
-            color      = FocusColors.OnSurfaceVariant,
+            text     = subLabel,
+            fontSize = 12.sp,
+            color    = FocusColors.OnSurfaceVariant,
         )
     }
 }
 
-// ── Last 7 days bar chart ─────────────────────────────────────────────────────
+// ── 7-day bar chart ───────────────────────────────────────────────────────────
 
 @Composable
-private fun VoidChartSection(
-    chartData: List<Pair<Long, Int>>,
-    chartMax:  Int,
+private fun BarChartSection(
+    days:          List<Pair<Long, Int>>,
+    maxCount:      Int,
+    todayEpochDay: Long,
 ) {
-    val todayEpochDay = remember { System.currentTimeMillis() / 86_400_000L }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -274,16 +300,17 @@ private fun VoidChartSection(
             fontWeight = FontWeight.SemiBold,
             color      = Color.White,
         )
+        Spacer(Modifier.height(4.dp))
         Text(
-            text     = "Focused hours: ${chartData.sumOf { it.second * 25 / 60 }}.${chartData.sumOf { it.second * 25 } % 60 / 6}h",
+            text     = "${days.sumOf { it.second }} sessions this week",
             fontSize = 12.sp,
             color    = FocusColors.OnSurfaceVariant,
         )
         Spacer(Modifier.height(16.dp))
 
-        // Count row above bars
+        // Session count labels above bars
         Row(modifier = Modifier.fillMaxWidth()) {
-            chartData.forEach { (_, count) ->
+            days.forEach { (_, count) ->
                 Text(
                     text      = if (count > 0) count.toString() else "",
                     modifier  = Modifier.weight(1f),
@@ -295,67 +322,61 @@ private fun VoidChartSection(
         }
         Spacer(Modifier.height(4.dp))
 
-        // Bar chart
-        VoidBarChart(
-            chartData     = chartData,
-            chartMax      = chartMax,
-            todayEpochDay = todayEpochDay,
-            modifier      = Modifier
+        // Bars
+        Canvas(
+            modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
-        )
-        Spacer(Modifier.height(6.dp))
+                .height(100.dp),
+        ) {
+            val gap      = 6.dp.toPx()
+            val barWidth = (size.width - gap * 6f) / 7f
+            val cornerPx = 4.dp.toPx()
+            val floorPx  = 2.dp.toPx()
 
-        // Day labels below bars
-        Row(modifier = Modifier.fillMaxWidth()) {
-            chartData.forEach { (epochDay, _) ->
+            days.forEachIndexed { index, (epochDay, count) ->
                 val isToday = epochDay == todayEpochDay
-                Text(
-                    text      = epochDayAbbrev(epochDay),
-                    modifier  = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    fontSize  = 12.sp,
-                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                    color     = if (isToday) Color.White else Color.White.copy(alpha = 0.4f),
-                )
+                val x       = index * (barWidth + gap)
+                val color   = if (isToday) Color.White else Color.White.copy(alpha = 0.4f)
+
+                if (count > 0) {
+                    val barHeight = (count.toFloat() / maxCount.toFloat()) * size.height
+                    drawRoundRect(
+                        color        = color,
+                        topLeft      = Offset(x, size.height - barHeight),
+                        size         = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    )
+                } else {
+                    // Floor mark — baseline indicator on empty days
+                    drawRoundRect(
+                        color        = Color.White.copy(alpha = 0.1f),
+                        topLeft      = Offset(x, size.height - floorPx),
+                        size         = Size(barWidth, floorPx),
+                        cornerRadius = CornerRadius(1.dp.toPx(), 1.dp.toPx()),
+                    )
+                }
             }
         }
-    }
-}
+        Spacer(Modifier.height(6.dp))
 
-@Composable
-private fun VoidBarChart(
-    chartData:     List<Pair<Long, Int>>,
-    chartMax:      Int,
-    todayEpochDay: Long,
-    modifier:      Modifier = Modifier,
-) {
-    Canvas(modifier = modifier) {
-        val gapPx          = 8.dp.toPx()
-        val barWidth       = (size.width - gapPx * 6f) / 7f
-        val maxBarHeightPx = size.height
-        val cornerPx       = 4.dp.toPx()
-        val floorPx        = 2.dp.toPx()
+        // Day-of-week labels below bars
+        Row(modifier = Modifier.fillMaxWidth()) {
+            days.forEach { (epochDay, _) ->
+                val isToday  = epochDay == todayEpochDay
+                val dayLabel = LocalDate.ofEpochDay(epochDay)
+                    .dayOfWeek
+                    .name
+                    .take(3)
+                    .lowercase()
+                    .replaceFirstChar { it.uppercaseChar() }
 
-        chartData.forEachIndexed { index, (epochDay, count) ->
-            val isToday = epochDay == todayEpochDay
-            val x       = index * (barWidth + gapPx)
-
-            if (count > 0) {
-                val barHeightPx = (count.toFloat() / chartMax.toFloat()) * maxBarHeightPx
-                drawRoundRect(
-                    color        = if (isToday) Color.White else Color.White.copy(alpha = 0.4f),
-                    topLeft      = Offset(x, size.height - barHeightPx),
-                    size         = Size(barWidth, barHeightPx),
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                )
-            } else {
-                // Floor mark — visible baseline on days with no sessions
-                drawRoundRect(
-                    color        = Color.White.copy(alpha = 0.1f),
-                    topLeft      = Offset(x, size.height - floorPx),
-                    size         = Size(barWidth, floorPx),
-                    cornerRadius = CornerRadius(1.dp.toPx(), 1.dp.toPx()),
+                Text(
+                    text       = dayLabel,
+                    modifier   = Modifier.weight(1f),
+                    textAlign  = TextAlign.Center,
+                    fontSize   = 11.sp,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    color      = if (isToday) Color.White else Color.White.copy(alpha = 0.4f),
                 )
             }
         }
@@ -364,11 +385,6 @@ private fun VoidBarChart(
 
 // ── Recent intervals ──────────────────────────────────────────────────────────
 
-/**
- * Asymmetric layout matching the stitch:
- *   - First session: full-width glass card
- *   - Next two sessions (if present): side-by-side 50/50 glass cards
- */
 @Composable
 private fun RecentIntervalsSection(sessions: List<SessionEntity>) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -380,33 +396,15 @@ private fun RecentIntervalsSection(sessions: List<SessionEntity>) {
         )
         Spacer(Modifier.height(12.dp))
 
-        // First session — full width
-        sessions.getOrNull(0)?.let { session ->
-            RecentIntervalCardLarge(session = session)
-        }
-
-        // Sessions 2 & 3 — side by side
-        val second = sessions.getOrNull(1)
-        val third  = sessions.getOrNull(2)
-        if (second != null) {
-            Spacer(Modifier.height(10.dp))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                RecentIntervalCardSmall(session = second, modifier = Modifier.weight(1f))
-                if (third != null) {
-                    RecentIntervalCardSmall(session = third, modifier = Modifier.weight(1f))
-                } else {
-                    Spacer(Modifier.weight(1f))
-                }
-            }
+        sessions.forEach { session ->
+            RecentIntervalCard(session = session)
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun RecentIntervalCardLarge(session: SessionEntity) {
+private fun RecentIntervalCard(session: SessionEntity) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -434,6 +432,7 @@ private fun RecentIntervalCardLarge(session: SessionEntity) {
                     modifier           = Modifier.size(16.dp),
                 )
             }
+
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(
                     text       = session.tag,
@@ -448,8 +447,9 @@ private fun RecentIntervalCardLarge(session: SessionEntity) {
                 )
             }
         }
+
         Text(
-            text       = durationLabel(session.durationSeconds),
+            text       = "${session.durationSeconds / 60}m",
             fontSize   = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color      = Color.White,
@@ -457,81 +457,16 @@ private fun RecentIntervalCardLarge(session: SessionEntity) {
     }
 }
 
-@Composable
-private fun RecentIntervalCardSmall(session: SessionEntity, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .background(GlassBg, GlassShape)
-            .border(1.dp, GlassBorder, GlassShape)
-            .padding(14.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .background(Color.White.copy(alpha = 0.1f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector        = Icons.Outlined.Timer,
-                contentDescription = null,
-                tint               = Color.White.copy(alpha = 0.7f),
-                modifier           = Modifier.size(14.dp),
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text       = session.tag,
-            fontSize   = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color      = Color.White,
-        )
-        Text(
-            text     = durationLabel(session.durationSeconds),
-            fontSize = 12.sp,
-            color    = FocusColors.OnSurfaceVariant,
-        )
-    }
-}
-
 // ============================================================================
-// Pure helpers (no composition — safe to call from remember blocks)
+// Pure helpers
 // ============================================================================
-
-private fun buildChartData(weeklySummary: List<DailySummary>): List<Pair<Long, Int>> {
-    val todayEpochDay = System.currentTimeMillis() / 86_400_000L
-    val summaryMap    = weeklySummary.associateBy { it.date }
-    return (6 downTo 0).map { daysBack ->
-        val epochDay = todayEpochDay - daysBack
-        epochDay to (summaryMap[epochDay]?.sessionCount ?: 0)
-    }
-}
-
-private fun epochDayAbbrev(epochDay: Long): String =
-    LocalDate.ofEpochDay(epochDay)
-        .dayOfWeek
-        .getDisplayName(TextStyle.NARROW, Locale.getDefault())
-        .replaceFirstChar { it.uppercaseChar() }
 
 private fun timeAgo(startedAtMs: Long): String {
     val diffMs = System.currentTimeMillis() - startedAtMs
     return when {
-        diffMs < 60_000L        -> "Just now"
-        diffMs < 3_600_000L     -> "${diffMs / 60_000}m ago"
-        diffMs < 86_400_000L    -> "Today · ${clockTime(startedAtMs)}"
-        else                    -> "Yesterday"
+        diffMs < 60_000L     -> "Just now"
+        diffMs < 3_600_000L  -> "${diffMs / 60_000}m ago"
+        diffMs < 86_400_000L -> "${diffMs / 3_600_000}h ago"
+        else                 -> "${diffMs / 86_400_000}d ago"
     }
-}
-
-private fun clockTime(epochMs: Long): String {
-    val cal  = Calendar.getInstance().also { it.timeInMillis = epochMs }
-    val hour = cal.get(Calendar.HOUR_OF_DAY)
-    val min  = cal.get(Calendar.MINUTE)
-    val amPm = if (hour < 12) "AM" else "PM"
-    val h12  = if (hour % 12 == 0) 12 else hour % 12
-    return "$h12:%02d $amPm".format(min)
-}
-
-private fun durationLabel(durationSeconds: Int): String {
-    val minutes = durationSeconds / 60
-    return if (minutes >= 60) "${minutes / 60}h ${minutes % 60}m" else "${minutes}m"
 }
