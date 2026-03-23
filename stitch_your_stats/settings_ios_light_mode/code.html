@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FocusFirst - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#000000",
+                        secondary: "#6B7280",
+                        surface: "#F9FAFB",
+                        "surface-dim": "#F3F4F6",
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Public Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ios-toggle:checked + .ios-toggle-dot {
+            transform: translateX(100%);
+            background-color: white;
+        }
+        .ios-toggle:checked {
+            background-color: #34C759;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-white text-black min-h-screen pb-32">
+<!-- TopAppBar Component -->
+<header class="bg-white/70 dark:bg-black/70 backdrop-blur-xl text-black dark:text-white fixed top-0 w-full z-50 border-b border-gray-200/10 shadow-none flex items-center justify-between px-6 h-16 w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-black dark:text-white" data-icon="timer">timer</span>
+<h1 class="font-inter font-bold tracking-tight text-xl text-black dark:text-white">FocusFirst</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="hover:opacity-70 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined text-black dark:text-white" data-icon="settings" style="font-variation-settings: 'FILL' 1;">settings</span>
+</button>
+</div>
+</header>
+<main class="pt-24 px-4 max-w-2xl mx-auto space-y-8">
+<!-- Page Headline -->
+<section>
+<h2 class="text-3xl font-extrabold tracking-tight px-2">Settings</h2>
+</section>
+<!-- Pro Features Upgrade Card -->
+<section class="relative overflow-hidden rounded-3xl bg-black p-6 text-white shadow-xl">
+<div class="relative z-10 flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+<span class="material-symbols-outlined" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div>
+<h3 class="font-bold text-lg leading-none">Pro Features</h3>
+<p class="text-xs text-gray-400 mt-1 uppercase tracking-widest font-semibold">Unlock Full Potential</p>
+</div>
+</div>
+<p class="text-sm text-gray-300 leading-relaxed">Access Cloud Sync, detailed analytics, and custom focus sounds to maximize your productivity.</p>
+<button class="w-full bg-white text-black font-bold py-3 rounded-xl active:scale-[0.98] transition-transform">
+                    Upgrade Now
+                </button>
+</div>
+<!-- Decorative Element -->
+<div class="absolute -right-4 -top-4 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/30 blur-3xl"></div>
+</section>
+<!-- Timer Section -->
+<section class="space-y-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-gray-400 px-4">Timer</h3>
+<div class="bg-surface-dim rounded-2xl overflow-hidden">
+<div class="flex items-center justify-between px-4 py-4 border-b border-gray-200/50 bg-white">
+<div class="flex items-center gap-3">
+<div class="bg-blue-100 p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-blue-600 text-xl" data-icon="play_circle">play_circle</span>
+</div>
+<span class="font-medium">Auto-Start</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer ios-toggle" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-green-500 transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-full shadow-sm"></div>
+</label>
+</div>
+<div class="flex items-center justify-between px-4 py-4 bg-white">
+<div class="flex items-center gap-3">
+<div class="bg-orange-100 p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-orange-600 text-xl" data-icon="bolt">bolt</span>
+</div>
+<span class="font-medium">Deep Work Mode</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer ios-toggle" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-green-500 transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-full shadow-sm"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- Sound & Haptics Section -->
+<section class="space-y-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-gray-400 px-4">Sound &amp; Haptics</h3>
+<div class="bg-surface-dim rounded-2xl overflow-hidden">
+<div class="flex items-center justify-between px-4 py-4 border-b border-gray-200/50 bg-white">
+<div class="flex items-center gap-3">
+<div class="bg-purple-100 p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-purple-600 text-xl" data-icon="waves">waves</span>
+</div>
+<div class="flex flex-col">
+<span class="font-medium">Background Noise</span>
+<span class="text-xs text-gray-500">Rain, White Noise, Cafe</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-gray-400" data-icon="chevron_right">chevron_right</span>
+</div>
+<div class="flex items-center justify-between px-4 py-4 bg-white">
+<div class="flex items-center gap-3">
+<div class="bg-pink-100 p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-pink-600 text-xl" data-icon="vibration">vibration</span>
+</div>
+<span class="font-medium">Haptic Feedback</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer ios-toggle" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-green-500 transition-colors"></div>
+<div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-full shadow-sm"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- Appearance Section -->
+<section class="space-y-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-gray-400 px-4">Appearance</h3>
+<div class="bg-surface-dim p-1 rounded-2xl grid grid-cols-3 gap-1">
+<button class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl shadow-sm border border-gray-100 transition-all">
+<div class="w-12 h-16 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex flex-col">
+<div class="h-4 w-full bg-white border-b border-gray-100"></div>
+<div class="flex-1 p-2 space-y-1">
+<div class="h-1 w-full bg-gray-200 rounded"></div>
+<div class="h-1 w-3/4 bg-gray-100 rounded"></div>
+</div>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Light</span>
+</button>
+<button class="flex flex-col items-center gap-2 p-4 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+<div class="w-12 h-16 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden flex flex-col">
+<div class="h-4 w-full bg-gray-800 border-b border-gray-700"></div>
+<div class="flex-1 p-2 space-y-1">
+<div class="h-1 w-full bg-gray-700 rounded"></div>
+<div class="h-1 w-3/4 bg-gray-800 rounded"></div>
+</div>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Dark</span>
+</button>
+<button class="flex flex-col items-center gap-2 p-4 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+<div class="w-12 h-16 rounded-lg overflow-hidden flex border border-gray-200">
+<div class="w-1/2 bg-white"></div>
+<div class="w-1/2 bg-black"></div>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-tighter">System</span>
+</button>
+</div>
+</section>
+<!-- Footer Links -->
+<section class="pt-4 pb-8 text-center">
+<p class="text-[10px] text-gray-400 font-medium tracking-widest uppercase">FocusFirst v2.4.0</p>
+</section>
+</main>
+<!-- BottomNavBar Component -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-8 pt-3 bg-white/70 backdrop-blur-xl border-t border-gray-200/10 z-50">
+<a class="flex flex-col items-center justify-center text-gray-400 px-4 py-1 hover:text-black transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="schedule">schedule</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-widest mt-1">Timer</span>
+</a>
+<a class="flex flex-col items-center justify-center text-gray-400 px-4 py-1 hover:text-black transition-colors active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-widest mt-1">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-black bg-gray-100 rounded-xl px-4 py-1 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-widest mt-1">Profile</span>
+</a>
+</nav>
+</body></html>

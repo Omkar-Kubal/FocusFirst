@@ -55,7 +55,7 @@ class SettingsViewModel @Inject constructor(
     val themeMode: StateFlow<String> = settingsRepository.themeMode.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = "Dark",
+        initialValue = "System",
     )
 
     val amoledMode: StateFlow<Boolean> = settingsRepository.amoledMode.stateIn(
@@ -79,6 +79,18 @@ class SettingsViewModel @Inject constructor(
         )
 
     val proUnlocked: StateFlow<Boolean> = settingsRepository.proUnlocked.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
+    val dailyGoal: StateFlow<Int> = settingsRepository.dailyGoal.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 8,
+    )
+
+    val autoStart: StateFlow<Boolean> = settingsRepository.autoStart.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false,
@@ -147,6 +159,21 @@ class SettingsViewModel @Inject constructor(
     fun updateProUnlocked(value: Boolean) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_PRO_UNLOCKED, value)
+        }
+    }
+
+    fun updateDailyGoal(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.update(
+                SettingsRepository.KEY_DAILY_GOAL,
+                value.coerceIn(1, 20),
+            )
+        }
+    }
+
+    fun updateAutoStart(value: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.update(SettingsRepository.KEY_AUTO_START, value)
         }
     }
 }

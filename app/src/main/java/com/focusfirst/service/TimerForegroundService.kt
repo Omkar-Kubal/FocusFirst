@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -41,77 +40,58 @@ import javax.inject.Inject
 //              broadcasts second-by-second ticks to the UI.
 //   Layer 2 – WorkManager (TimerSyncWorker, wired separately) acts as a
 //              watchdog: if the process is killed it reschedules completion.
-//
-// NOTE: SessionDao is injected but not yet used in V1.  Wire it up when the
-//       Room database layer (AppDatabase / SessionDao) is implemented.
 // ---------------------------------------------------------------------------
 
 @AndroidEntryPoint
 class TimerForegroundService : Service() {
 
-    // ── Hilt injection ──────────────────────────────────────────────────────
     @Inject lateinit var sessionDao: SessionDao
 
-    // ── Coroutine scope ─────────────────────────────────────────────────────
-    // SupervisorJob: child coroutine failures don't cancel the scope.
-    // Dispatchers.IO: keeps the countdown off the main thread.
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var timerJob: Job? = null
 
-    // ── Mutable timer state ──────────────────────────────────────────────────
     private var remainingSeconds: Int = 0
     private var currentPhase: TimerPhase = TimerPhase.FOCUS
     private var isRunning: Boolean = false
 
-    // ── Notification manager (cached) ────────────────────────────────────────
     private val notificationManager: NotificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
-    // ── LocalBroadcastManager (cached) ──────────────────────────────────────
     private val localBroadcastManager: LocalBroadcastManager by lazy {
         LocalBroadcastManager.getInstance(this)
     }
 
-    // ========================================================================
-    // Companion object — all public constants + helper
-    // ========================================================================
+    private val completionPrefs by lazy {
+        getSharedPreferences(FOCUS_FIRST_PREFS, Context.MODE_PRIVATE)
+    }
 
     companion object {
-        // Actions (sent as intent.action to onStartCommand)
+        const val FOCUS_FIRST_PREFS = "focusfirst_prefs"
+        const val PREF_VIBRATE_ENABLED = "vibrate_enabled"
+        const val PREF_SOUND_TYPE = "sound_type"
+
         const val ACTION_START  = "com.focusfirst.ACTION_START"
         const val ACTION_PAUSE  = "com.focusfirst.ACTION_PAUSE"
         const val ACTION_RESUME = "com.focusfirst.ACTION_RESUME"
         const val ACTION_STOP   = "com.focusfirst.ACTION_STOP"
         const val ACTION_SKIP   = "com.focusfirst.ACTION_SKIP"
 
-        // Broadcast actions (received by UI via LocalBroadcastManager)
         const val BROADCAST_TICK     = "com.focusfirst.TICK"
         const val BROADCAST_FINISHED = "com.focusfirst.FINISHED"
 
-        // Extras for ACTION_START
         const val EXTRA_DURATION_SECONDS = "extra_duration_seconds"
 
-        // Shared extras (start input + broadcast output)
         const val EXTRA_PHASE = "extra_phase"
 
-        // Extras carried in BROADCAST_TICK
         const val EXTRA_REMAINING_SECONDS = "extra_remaining_seconds"
         const val EXTRA_IS_RUNNING        = "extra_is_running"
 
-        // Notification
         const val NOTIFICATION_ID = 1001
-        const val CHANNEL_ID      = "focusfirst_timer" // created in FocusFirstApp
+        const val CHANNEL_ID      = "focusfirst_timer"
 
         private const val TAG = "TimerForegroundService"
 
-        /**
-         * Convenience builder for the ACTION_START intent.
-         *
-         * Usage:
-         *   val intent = TimerForegroundService.buildStartIntent(context, 25 * 60, TimerPhase.FOCUS)
-         *   ContextCompat.startForegroundService(context, intent)
-         */
         fun buildStartIntent(
             context: Context,
             durationSeconds: Int,
@@ -123,20 +103,11 @@ class TimerForegroundService : Service() {
         }
     }
 
-    // ========================================================================
-    // Service lifecycle
-    // ========================================================================
-
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate")
     }
 
-    /**
-     * START_STICKY: if the OS kills the service, it will be restarted with a
-     * null intent (no action).  The null branch in the when() below is a
-     * safe no-op — WorkManager watchdog handles re-scheduling.
-     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand action=${intent?.action}")
         when (intent?.action) {
@@ -150,7 +121,6 @@ class TimerForegroundService : Service() {
         return START_STICKY
     }
 
-    /** Not a bound service. */
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
@@ -158,10 +128,6 @@ class TimerForegroundService : Service() {
         serviceScope.cancel()
         Log.d(TAG, "onDestroy — scope cancelled")
     }
-
-    // ========================================================================
-    // Action handlers
-    // ========================================================================
 
     private fun handleStart(intent: Intent) {
         val durationSeconds = intent.getIntExtra(EXTRA_DURATION_SECONDS, 25 * 60)
@@ -172,7 +138,6 @@ class TimerForegroundService : Service() {
 
         Log.d(TAG, "handleStart phase=$currentPhase duration=${durationSeconds}s")
 
-        // Must call startForeground() before anything else on API 26+.
         startForegroundCompat()
         startTimerCoroutine()
     }
@@ -182,14 +147,13 @@ class TimerForegroundService : Service() {
         timerJob?.cancel()
         timerJob   = null
         isRunning  = false
-        // Show "Resume" in the notification and let the UI know we've paused.
         updateNotification()
         sendTickBroadcast(isRunning = false)
     }
 
     private fun handleResume() {
         Log.d(TAG, "handleResume remaining=${remainingSeconds}s")
-        if (remainingSeconds <= 0) return // Guard against spurious resume.
+        if (remainingSeconds <= 0) return
         isRunning = true
         startTimerCoroutine()
     }
@@ -205,11 +169,6 @@ class TimerForegroundService : Service() {
         stopSelf()
     }
 
-    /**
-     * Skip: treat the current phase as immediately finished.
-     * Plays completion feedback and stops the service.  The UI / ViewModel
-     * is responsible for starting the next phase.
-     */
     private fun handleSkip() {
         Log.d(TAG, "handleSkip phase=$currentPhase")
         timerJob?.cancel()
@@ -219,30 +178,11 @@ class TimerForegroundService : Service() {
         serviceScope.launch(Dispatchers.Main) { onPhaseFinished() }
     }
 
-    // ========================================================================
-    // Countdown coroutine
-    // ========================================================================
-
-    /**
-     * Core timer loop.  Runs on Dispatchers.IO (serviceScope).
-     *
-     * Tick sequence per second:
-     *   1. Broadcast current remainingSeconds to UI.
-     *   2. Wait 1 000 ms.
-     *   3. Decrement remainingSeconds.
-     *   4. If a 30-second boundary has passed, refresh the notification.
-     *
-     * On natural completion (remainingSeconds reaches 0):
-     *   • Send a final TICK with isRunning=false (so UI shows 00:00).
-     *   • Send BROADCAST_FINISHED.
-     *   • Call onPhaseFinished() on Main.
-     */
     private fun startTimerCoroutine() {
         timerJob?.cancel()
         var ticksSinceLastNotificationUpdate = 0
 
         timerJob = serviceScope.launch {
-            // Immediately reflect "Pause" button in the notification.
             updateNotification()
 
             while (remainingSeconds > 0 && isActive) {
@@ -257,25 +197,15 @@ class TimerForegroundService : Service() {
                 }
             }
 
-            // Only run completion logic if the coroutine was not externally cancelled
-            // (handlePause / handleStop cancel the job before reaching here).
             if (isActive) {
                 isRunning = false
-                sendTickBroadcast(isRunning = false)   // UI shows 00:00
+                sendTickBroadcast(isRunning = false)
                 sendFinishedBroadcast()
                 withContext(Dispatchers.Main) { onPhaseFinished() }
             }
         }
     }
 
-    // ========================================================================
-    // Completion callbacks
-    // ========================================================================
-
-    /**
-     * Called on Main thread when a phase completes naturally or is skipped.
-     * Plays haptic + audio feedback, then tears down the foreground service.
-     */
     private fun onPhaseFinished() {
         Log.d(TAG, "onPhaseFinished phase=$currentPhase")
         TimerAlarmWorker.setCompleted(this)
@@ -284,10 +214,6 @@ class TimerForegroundService : Service() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
-
-    // ========================================================================
-    // Broadcasts (via LocalBroadcastManager)
-    // ========================================================================
 
     private fun sendTickBroadcast(isRunning: Boolean) {
         val intent = Intent(BROADCAST_TICK).apply {
@@ -305,15 +231,6 @@ class TimerForegroundService : Service() {
         localBroadcastManager.sendBroadcast(intent)
     }
 
-    // ========================================================================
-    // Notification helpers
-    // ========================================================================
-
-    /**
-     * Calls the correct startForeground() overload.
-     * API 34+ (UPSIDE_DOWN_CAKE) requires the foreground service type to be
-     * declared explicitly in code to match the manifest's foregroundServiceType.
-     */
     private fun startForegroundCompat() {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -327,21 +244,10 @@ class TimerForegroundService : Service() {
         }
     }
 
-    /** Posts an updated notification to the system — thread-safe. */
     private fun updateNotification() {
         notificationManager.notify(NOTIFICATION_ID, buildNotification())
     }
 
-    /**
-     * Builds the persistent timer notification.
-     *
-     * Pause/Resume action: label toggles based on [isRunning].
-     * Stop action: always present.
-     * Content tap: opens MainActivity.
-     *
-     * FOREGROUND_SERVICE_IMMEDIATE ensures Android 12+ does not delay the
-     * initial display (critical for a user-visible timer).
-     */
     private fun buildNotification(): Notification {
         val contentIntent = PendingIntent.getActivity(
             this,
@@ -385,22 +291,15 @@ class TimerForegroundService : Service() {
             .build()
     }
 
-    // ========================================================================
-    // Haptic + audio feedback on completion
-    // ========================================================================
+    private fun isVibrateEnabled(): Boolean =
+        completionPrefs.getBoolean(PREF_VIBRATE_ENABLED, true)
 
-    /**
-     * Pattern: silence → 300 ms buzz → 100 ms pause → 300 ms buzz.
-     * -1 = do not repeat.
-     *
-     * Uses VibratorManager on API 31+; falls back to the deprecated Vibrator
-     * service on API 26–30.  VibrationEffect is safe on all supported API
-     * levels since minSdk = 26.
-     */
     @Suppress("DEPRECATION")
     private fun vibrate() {
+        if (!isVibrateEnabled()) return
+
         val waveform = longArrayOf(0, 300, 100, 300)
-        val effect   = VibrationEffect.createWaveform(waveform, /* repeat= */ -1)
+        val effect   = VibrationEffect.createWaveform(waveform, -1)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager =
@@ -412,20 +311,21 @@ class TimerForegroundService : Service() {
         }
     }
 
-    /**
-     * Plays the default notification sound once.
-     * Uses the system notification ringtone so the user's own sound preference
-     * is respected automatically.
-     */
-    private fun playSound() {
-        val uri      = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        val ringtone = RingtoneManager.getRingtone(this, uri)
-        ringtone?.play()
-    }
+    private fun readSoundType(): String =
+        completionPrefs.getString(PREF_SOUND_TYPE, "Bell") ?: "Bell"
 
-    // ========================================================================
-    // Utility
-    // ========================================================================
+    private fun playSound() {
+        val type = readSoundType()
+        if (type.equals("None", ignoreCase = true)) return
+
+        try {
+            val uri      = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val ringtone = RingtoneManager.getRingtone(this, uri)
+            ringtone?.play()
+        } catch (_: Exception) {
+            Log.w(TAG, "playSound failed")
+        }
+    }
 
     private fun TimerPhase.displayName(): String = when (this) {
         TimerPhase.FOCUS       -> "Focus"
@@ -433,27 +333,9 @@ class TimerForegroundService : Service() {
         TimerPhase.LONG_BREAK  -> "Long Break"
     }
 
-    /** Formats a raw second count as "MM:SS". */
     private fun formatTime(totalSeconds: Int): String {
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
         return "%02d:%02d".format(minutes, seconds)
-    }
-}
-
-// ============================================================================
-// BootReceiver
-//
-// Declared in AndroidManifest with RECEIVE_BOOT_COMPLETED permission.
-// V1: logs receipt only.
-// V2: will restore an in-progress session from DataStore / WorkManager.
-// ============================================================================
-
-class BootReceiver : BroadcastReceiver() {
-
-    override fun onReceive(context: Context?, intent: Intent?) {
-        if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("BootReceiver", "Boot received — timer restore logic comes in V2")
-        }
     }
 }

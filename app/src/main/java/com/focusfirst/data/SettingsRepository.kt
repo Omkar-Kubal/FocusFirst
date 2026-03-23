@@ -16,10 +16,18 @@ val Context.focusFirstSettingsDataStore: DataStore<Preferences> by preferencesDa
 )
 
 class SettingsRepository(
+    private val appContext: Context,
     private val dataStore: DataStore<Preferences>,
 ) {
 
+    private val legacyPrefs =
+        appContext.getSharedPreferences(FOCUS_FIRST_PREFS, Context.MODE_PRIVATE)
+
     companion object {
+        const val FOCUS_FIRST_PREFS = "focusfirst_prefs"
+        const val LEGACY_VIBRATE_ENABLED = "vibrate_enabled"
+        const val LEGACY_SOUND_TYPE = "sound_type"
+
         val KEY_FOCUS_MINUTES = intPreferencesKey("KEY_FOCUS_MINUTES")
         val KEY_SHORT_BREAK = intPreferencesKey("KEY_SHORT_BREAK")
         val KEY_LONG_BREAK = intPreferencesKey("KEY_LONG_BREAK")
@@ -32,6 +40,8 @@ class SettingsRepository(
         val KEY_NOTIFICATION_PERMISSION_ASKED =
             booleanPreferencesKey("KEY_NOTIFICATION_PERMISSION_ASKED")
         val KEY_PRO_UNLOCKED = booleanPreferencesKey("KEY_PRO_UNLOCKED")
+        val KEY_DAILY_GOAL = intPreferencesKey("KEY_DAILY_GOAL")
+        val KEY_AUTO_START = booleanPreferencesKey("KEY_AUTO_START")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[KEY_FOCUS_MINUTES] ?: 25 }
@@ -47,7 +57,7 @@ class SettingsRepository(
 
     val vibrate: Flow<Boolean> = dataStore.data.map { it[KEY_VIBRATE] ?: true }
 
-    val themeMode: Flow<String> = dataStore.data.map { it[KEY_THEME_MODE] ?: "Dark" }
+    val themeMode: Flow<String> = dataStore.data.map { it[KEY_THEME_MODE] ?: "System" }
 
     val amoledMode: Flow<Boolean> = dataStore.data.map { it[KEY_AMOLED_MODE] ?: false }
 
@@ -59,9 +69,22 @@ class SettingsRepository(
 
     val proUnlocked: Flow<Boolean> = dataStore.data.map { it[KEY_PRO_UNLOCKED] ?: false }
 
+    val dailyGoal: Flow<Int> = dataStore.data.map { prefs ->
+        (prefs[KEY_DAILY_GOAL] ?: 8).coerceIn(1, 20)
+    }
+
+    val autoStart: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_START] ?: false }
+
     suspend fun <T> update(key: Preferences.Key<T>, value: T) {
         dataStore.edit { preferences ->
             preferences[key] = value
+        }
+        when (key.name) {
+            KEY_SOUND_TYPE.name ->
+                legacyPrefs.edit().putString(LEGACY_SOUND_TYPE, value as String).apply()
+
+            KEY_VIBRATE.name ->
+                legacyPrefs.edit().putBoolean(LEGACY_VIBRATE_ENABLED, value as Boolean).apply()
         }
     }
 }

@@ -37,13 +37,13 @@ import javax.inject.Inject
 //
 // Single source of truth for all timer UI state.  Coordinates between:
 //   - TimerForegroundService  (issues commands, receives tick/finish broadcasts)
-//   - SettingsRepository      (drives durations — focus / short break / long break)
+//   - SettingsRepository      (drives break lengths, long-break cadence, etc.)
 //   - Room / SessionDao        (persists completed + partial sessions)
 //   - Compose UI               (exposes StateFlows)
 //
-// Settings are read at phase-launch time via Eagerly-started StateFlows so
-// that .value is always fresh.  Changing a break duration in Settings will
-// take effect on the NEXT phase transition — exactly as the user expects.
+// Initial FOCUS duration when the user taps Start follows the selected
+// [IntervalPreset]; automatic phase transitions use slider values from
+// [SettingsRepository].
 // ---------------------------------------------------------------------------
 
 @HiltViewModel
@@ -113,6 +113,15 @@ class TimerViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    /** Last 14 calendar buckets for week-over-week stats trends. */
+    val dailySummaries14d: StateFlow<List<DailySummary>> = sessionDao
+        .observeWeeklySummary(sinceEpochMs = System.currentTimeMillis() - 14L * 24 * 60 * 60 * 1000L)
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList(),
+        )
+
     // ========================================================================
     // Private session-tracking fields
     // ========================================================================
@@ -158,11 +167,11 @@ class TimerViewModel @Inject constructor(
     /**
      * Starts a fresh FOCUS session.
      *
-     * Duration is driven by [SettingsRepository.focusMinutes] — not the
-     * preset's built-in value — so the user's custom setting always wins.
+     * Duration follows the selected [IntervalPreset]'s focus length so the
+     * preset pills (15 / 25 / 35 / 45 minutes) match the running timer.
      */
     fun start(preset: IntervalPreset = _timerState.value.preset) {
-        val durationSeconds = focusMinutesFlow.value * 60
+        val durationSeconds = preset.focusMinutes * 60
         sessionStartMs = System.currentTimeMillis()
 
         _timerState.update { current ->
@@ -219,20 +228,22 @@ class TimerViewModel @Inject constructor(
 
     /**
      * Switches the active preset when the timer is idle.
-     * The idle display time reflects the current [SettingsRepository.focusMinutes]
-     * value so it stays consistent regardless of the selected preset label.
+     * Idle display reflects the preset length (15 / 25 / 35 / 45 minutes).
      */
     fun selectPreset(preset: IntervalPreset) {
         val state = _timerState.value
         if (state.isRunning || state.isPaused) return
 
-        val focusSeconds = focusMinutesFlow.value * 60
+        val focusSeconds = preset.focusMinutes * 60
         _timerState.update { current ->
             current.copy(
                 preset           = preset,
                 totalSeconds     = focusSeconds,
                 remainingSeconds = focusSeconds,
             )
+        }
+        viewModelScope.launch {
+            settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, preset.focusMinutes)
         }
         Log.d(TAG, "selectPreset $preset")
     }

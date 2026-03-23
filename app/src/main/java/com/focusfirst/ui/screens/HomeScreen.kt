@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +58,8 @@ import com.focusfirst.data.model.IntervalPreset
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
 import com.focusfirst.ui.theme.FocusColors
+import com.focusfirst.ui.theme.LocalFocusDarkTheme
+import com.focusfirst.ui.theme.ringColor
 import com.focusfirst.util.BatteryPromptDialog
 import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TimerViewModel
@@ -73,12 +76,12 @@ fun HomeScreen(
 ) {
     val timerState by viewModel.timerState.collectAsStateWithLifecycle()
     val todayCount by viewModel.todayCount.collectAsStateWithLifecycle()
+    val dailyGoal by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
     var showStopDialog by rememberSaveable { mutableStateOf(false) }
 
-    // ── Stop confirmation dialog ───────────────────────────────────────────
     if (showStopDialog) {
         AlertDialog(
             onDismissRequest = { showStopDialog = false },
@@ -102,31 +105,30 @@ fun HomeScreen(
         )
     }
 
-    // ── Battery prompt (shown once on first launch) ────────────────────────
     BatteryPromptDialog(
         settingsViewModel = settingsViewModel,
         context           = context,
     )
 
-    // ── Screen layout ──────────────────────────────────────────────────────
+    val scheme = MaterialTheme.colorScheme
+
     Column(
         modifier            = Modifier
             .fillMaxSize()
-            .background(FocusColors.Background),
+            .background(scheme.background),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
 
-        // 1. Glass top bar
-        HomeTopBar(onSettingsClick = onNavigateToSettings)
+        HomeTopBar(
+            onSettingsClick = onNavigateToSettings,
+        )
 
-        // 2. Preset pill row
         PresetPillRow(
             activePreset = timerState.preset,
             isRunning    = timerState.isRunning,
             onSelect     = { viewModel.selectPreset(it) },
         )
 
-        // 3. Timer ring — fills remaining vertical space
         Box(
             modifier         = Modifier
                 .weight(1f)
@@ -138,7 +140,6 @@ fun HomeScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // 4. Primary FAB
         val fabIcon = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
         val fabLabel = when {
             timerState.isRunning -> "Pause"
@@ -154,7 +155,8 @@ fun HomeScreen(
         Surface(
             modifier        = Modifier.size(80.dp),
             shape           = CircleShape,
-            color           = Color.White,
+            color           = scheme.primary,
+            contentColor    = scheme.onPrimary,
             onClick         = fabAction,
             shadowElevation = 8.dp,
         ) {
@@ -165,13 +167,12 @@ fun HomeScreen(
                 Icon(
                     imageVector        = fabIcon,
                     contentDescription = fabLabel,
-                    tint               = Color.Black,
+                    tint               = scheme.onPrimary,
                     modifier           = Modifier.size(36.dp),
                 )
             }
         }
 
-        // 5. Stop button — visible only when timer is not idle
         AnimatedVisibility(visible = !timerState.isIdle) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(Modifier.height(12.dp))
@@ -179,7 +180,7 @@ fun HomeScreen(
                     Icon(
                         imageVector        = Icons.Outlined.Stop,
                         contentDescription = "Stop session",
-                        tint               = Color.White.copy(alpha = 0.7f),
+                        tint               = scheme.onSurface.copy(alpha = 0.7f),
                         modifier           = Modifier.size(28.dp),
                     )
                 }
@@ -188,9 +189,9 @@ fun HomeScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // 6. Bento stats row
         BentoStatsRow(
             todayCount = todayCount,
+            dailyGoal  = dailyGoal,
             modifier   = Modifier.padding(horizontal = 16.dp),
         )
 
@@ -202,14 +203,16 @@ fun HomeScreen(
 // Sub-composables
 // ============================================================================
 
-// ── Glass top bar ─────────────────────────────────────────────────────────────
-
 @Composable
 private fun HomeTopBar(onSettingsClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val dark   = LocalFocusDarkTheme.current
+    val barBg  = if (dark) Color.White.copy(alpha = 0.08f) else scheme.surfaceVariant.copy(alpha = 0.5f)
+
     Row(
         modifier              = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.08f))
+            .background(barBg)
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -218,7 +221,7 @@ private fun HomeTopBar(onSettingsClick: () -> Unit) {
             Icon(
                 imageVector        = Icons.Outlined.Settings,
                 contentDescription = "Settings",
-                tint               = Color.White.copy(alpha = 0.7f),
+                tint               = scheme.onSurface.copy(alpha = 0.7f),
             )
         }
 
@@ -226,20 +229,18 @@ private fun HomeTopBar(onSettingsClick: () -> Unit) {
             text       = "Focus",
             fontSize   = 18.sp,
             fontWeight = FontWeight.SemiBold,
-            color      = Color.White,
+            color      = scheme.onSurface,
         )
 
         IconButton(onClick = { /* reserved */ }) {
             Icon(
                 imageVector        = Icons.Filled.MoreHoriz,
                 contentDescription = "More",
-                tint               = Color.White.copy(alpha = 0.7f),
+                tint               = scheme.onSurface.copy(alpha = 0.7f),
             )
         }
     }
 }
-
-// ── Preset pill row ───────────────────────────────────────────────────────────
 
 @Composable
 private fun PresetPillRow(
@@ -247,6 +248,9 @@ private fun PresetPillRow(
     isRunning:    Boolean,
     onSelect:     (IntervalPreset) -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val dark   = LocalFocusDarkTheme.current
+
     LazyRow(
         modifier              = Modifier
             .fillMaxWidth()
@@ -256,11 +260,25 @@ private fun PresetPillRow(
         items(IntervalPreset.entries) { preset ->
             val isSelected = preset == activePreset
 
+            val (bg, fg) = when {
+                isSelected && !dark ->
+                    scheme.primary to scheme.onPrimary
+
+                isSelected && dark ->
+                    Color.White to Color.Black
+
+                !isSelected && !dark ->
+                    FocusColors.LightPillIdle to scheme.onSurface
+
+                else ->
+                    Color.White.copy(alpha = 0.1f) to Color.White.copy(alpha = 0.6f)
+            }
+
             Box(
                 modifier = Modifier
                     .alpha(if (isRunning && !isSelected) 0.4f else 1f)
                     .background(
-                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.1f),
+                        color = bg,
                         shape = RoundedCornerShape(50.dp),
                     )
                     .clickable(enabled = !isRunning) { onSelect(preset) }
@@ -268,17 +286,15 @@ private fun PresetPillRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text       = "Focus ${preset.focusMinutes}m",
+                    text       = "${preset.focusMinutes}m",
                     fontSize   = 14.sp,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    color      = if (isSelected) Color.Black else Color.White.copy(alpha = 0.6f),
+                    color      = fg,
                 )
             }
         }
     }
 }
-
-// ── Void timer ring ───────────────────────────────────────────────────────────
 
 @Composable
 private fun VoidTimerRing(timerState: TimerState) {
@@ -287,6 +303,10 @@ private fun VoidTimerRing(timerState: TimerState) {
         animationSpec = tween(durationMillis = 800),
         label         = "voidProgress",
     )
+
+    val ringAccent = timerState.phase.ringColor()
+    val scheme     = MaterialTheme.colorScheme
+    val trackColor = ringAccent.copy(alpha = 0.12f)
 
     val phaseLabel = when (timerState.phase) {
         TimerPhase.FOCUS       -> "FOCUS"
@@ -309,9 +329,8 @@ private fun VoidTimerRing(timerState: TimerState) {
             )
             val arcSize = Size(radius * 2f, radius * 2f)
 
-            // Background track — full 360° at low opacity
             drawArc(
-                color      = Color.White.copy(alpha = 0.1f),
+                color      = trackColor,
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter  = false,
@@ -320,10 +339,9 @@ private fun VoidTimerRing(timerState: TimerState) {
                 style      = Stroke(strokePx),
             )
 
-            // Progress arc — sweeps clockwise from 12 o'clock
             if (animatedProgress > 0f) {
                 drawArc(
-                    color      = Color.White,
+                    color      = ringAccent,
                     startAngle = -90f,
                     sweepAngle = 360f * animatedProgress,
                     useCenter  = false,
@@ -340,7 +358,7 @@ private fun VoidTimerRing(timerState: TimerState) {
                 fontSize      = 80.sp,
                 fontWeight    = FontWeight.Bold,
                 letterSpacing = (-1.6).sp,
-                color         = Color.White,
+                color         = scheme.onSurface,
             )
             Spacer(Modifier.height(4.dp))
             Text(
@@ -348,34 +366,37 @@ private fun VoidTimerRing(timerState: TimerState) {
                 fontSize      = 10.sp,
                 fontWeight    = FontWeight.Medium,
                 letterSpacing = 2.sp,
-                color         = Color.White.copy(alpha = 0.4f),
+                color         = scheme.onSurfaceVariant,
             )
         }
     }
 }
 
-// ── Bento stats row ───────────────────────────────────────────────────────────
-
-private val BentoShape  = RoundedCornerShape(16.dp)
-private val BentoBg     = FocusColors.SurfaceContainerLow
-private val BentoBorder = Color.White.copy(alpha = 0.08f)
+private val BentoShape = RoundedCornerShape(16.dp)
 
 @Composable
 private fun BentoStatsRow(
     todayCount: Int,
+    dailyGoal:  Int,
     modifier:   Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val dark   = LocalFocusDarkTheme.current
+    val cardBg = if (dark) FocusColors.SurfaceContainerLow else scheme.surface
+    val border = if (dark) Color.White.copy(alpha = 0.08f) else scheme.outlineVariant.copy(alpha = 0.4f)
+    val goalDen = dailyGoal.coerceAtLeast(1)
+    val progress = (todayCount / goalDen.toFloat()).coerceIn(0f, 1f)
+
     Row(
         modifier              = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
 
-        // Daily goal card
         Column(
             modifier = Modifier
                 .weight(1f)
-                .background(BentoBg, BentoShape)
-                .border(1.dp, BentoBorder, BentoShape)
+                .background(cardBg, BentoShape)
+                .border(1.dp, border, BentoShape)
                 .padding(16.dp),
         ) {
             Text(
@@ -383,23 +404,39 @@ private fun BentoStatsRow(
                 fontSize      = 10.sp,
                 fontWeight    = FontWeight.Medium,
                 letterSpacing = 1.5.sp,
-                color         = Color.White.copy(alpha = 0.4f),
+                color         = scheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text       = "$todayCount / 8",
+                text       = "$todayCount / $goalDen",
                 fontSize   = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color      = Color.White,
+                color      = scheme.onSurface,
             )
+            Spacer(Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(
+                        color = scheme.surfaceVariant.copy(alpha = if (dark) 0.35f else 0.6f),
+                        shape = RoundedCornerShape(2.dp),
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction = progress)
+                        .height(4.dp)
+                        .background(scheme.primary, RoundedCornerShape(2.dp)),
+                )
+            }
         }
 
-        // Streak card — TODO: derive from weeklySummary in V2
         Column(
             modifier = Modifier
                 .weight(1f)
-                .background(BentoBg, BentoShape)
-                .border(1.dp, BentoBorder, BentoShape)
+                .background(cardBg, BentoShape)
+                .border(1.dp, border, BentoShape)
                 .padding(16.dp),
         ) {
             Text(
@@ -407,7 +444,7 @@ private fun BentoStatsRow(
                 fontSize      = 10.sp,
                 fontWeight    = FontWeight.Medium,
                 letterSpacing = 1.5.sp,
-                color         = Color.White.copy(alpha = 0.4f),
+                color         = scheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -415,7 +452,7 @@ private fun BentoStatsRow(
                     text       = "0",
                     fontSize   = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = Color.White,
+                    color      = scheme.onSurface,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(

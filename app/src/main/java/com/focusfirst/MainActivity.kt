@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -45,13 +47,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.screens.HomeScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
-import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.FocusFirstTheme
+import com.focusfirst.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -105,7 +109,17 @@ class MainActivity : ComponentActivity() {
         requestPostNotificationsPermissionIfNeeded()
 
         setContent {
-            FocusFirstTheme {
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
+            val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+            val amoledMode by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                "Dark"  -> true
+                "Light" -> false
+                else    -> systemDark
+            }
+
+            FocusFirstTheme(darkTheme = darkTheme, amoledMode = amoledMode) {
                 FocusFirstAppContent(
                     showNotificationRationale = showNotificationRationale,
                 )
@@ -173,15 +187,17 @@ private fun FocusFirstAppContent(
         }
     }
 
+    val scheme = MaterialTheme.colorScheme
+
     Scaffold(
-        containerColor = FocusColors.Background,
+        containerColor = scheme.background,
         snackbarHost   = {
             SnackbarHost(snackbarHostState) { data ->
                 Snackbar(
                     snackbarData     = data,
-                    containerColor   = FocusColors.SurfaceContainerLow,
-                    contentColor     = Color.White,
-                    actionColor      = Color.White,
+                    containerColor   = scheme.surfaceContainerHigh,
+                    contentColor     = scheme.onSurface,
+                    actionColor      = scheme.primary,
                 )
             }
         },
@@ -195,14 +211,16 @@ private fun FocusFirstAppContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(FocusColors.Background)
+                .background(scheme.background)
                 .padding(scaffoldPadding),
         ) {
             when (selectedTab) {
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { selectedTab = Tab.SETTINGS },
                 )
-                Tab.STATS    -> StatsScreen()
+                Tab.STATS    -> StatsScreen(
+                    onNavigateToSettings = { selectedTab = Tab.SETTINGS },
+                )
                 Tab.SETTINGS -> SettingsScreen()
             }
         }
@@ -218,8 +236,10 @@ private fun FocusBottomNav(
     selectedTab:   Tab,
     onTabSelected: (Tab) -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
+
     NavigationBar(
-        containerColor = FocusColors.SurfaceContainerLow,
+        containerColor = scheme.surfaceContainerLow,
     ) {
         tabs.forEach { item ->
             val isSelected = selectedTab == item.tab
@@ -239,11 +259,11 @@ private fun FocusBottomNav(
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor   = Color.White,
-                    unselectedIconColor = Color.White.copy(alpha = 0.4f),
-                    selectedTextColor   = Color.White,
-                    unselectedTextColor = Color.White.copy(alpha = 0.4f),
-                    indicatorColor      = Color.White.copy(alpha = 0.12f),
+                    selectedIconColor       = scheme.onSurface,
+                    unselectedIconColor     = scheme.onSurfaceVariant,
+                    selectedTextColor       = scheme.onSurface,
+                    unselectedTextColor     = scheme.onSurfaceVariant,
+                    indicatorColor          = scheme.primary.copy(alpha = 0.12f),
                 ),
             )
         }

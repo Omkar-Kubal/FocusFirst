@@ -53,6 +53,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSettingsRepository(
+        @ApplicationContext context: Context,
         dataStore: DataStore<Preferences>,
-    ): SettingsRepository = SettingsRepository(dataStore)
+    ): SettingsRepository = SettingsRepository(
+        appContext = context.applicationContext,
+        dataStore  = dataStore,
+    )
 }
