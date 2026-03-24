@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.screens.HomeScreen
+import com.focusfirst.ui.screens.PlanetScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
@@ -67,7 +69,7 @@ import javax.inject.Inject
 // Navigation
 // ============================================================================
 
-private enum class Tab { HOME, STATS, SETTINGS }
+private enum class Tab { HOME, PLANET, STATS, SETTINGS }
 
 private data class TabItem(
     val tab:   Tab,
@@ -77,6 +79,7 @@ private data class TabItem(
 
 private val tabs = listOf(
     TabItem(Tab.HOME,     "TIMER",   Icons.Outlined.Timer),
+    TabItem(Tab.PLANET,   "WORLD",   Icons.Outlined.Public),
     TabItem(Tab.STATS,    "STATS",   Icons.Outlined.BarChart),
     TabItem(Tab.SETTINGS, "PROFILE", Icons.Outlined.Person),
 )
@@ -231,6 +234,7 @@ private fun FocusFirstAppContent(
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { selectedTab = Tab.SETTINGS },
                 )
+                Tab.PLANET   -> PlanetScreen()
                 Tab.STATS    -> StatsScreen(
                     onNavigateToSettings = { selectedTab = Tab.SETTINGS },
                 )

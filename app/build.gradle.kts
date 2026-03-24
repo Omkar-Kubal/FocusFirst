@@ -99,6 +99,9 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
 
+    // ── SceneView (3D planet rendering) ───────────────────────────────────
+    implementation(libs.sceneview.lib)
+
     // ── Test ──────────────────────────────────────────────────────────────
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

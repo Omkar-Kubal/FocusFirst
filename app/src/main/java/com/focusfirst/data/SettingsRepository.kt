@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.focusfirst.data.model.PlanetSkin
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -42,6 +43,7 @@ class SettingsRepository(
         val KEY_PRO_UNLOCKED = booleanPreferencesKey("KEY_PRO_UNLOCKED")
         val KEY_DAILY_GOAL = intPreferencesKey("KEY_DAILY_GOAL")
         val KEY_AUTO_START = booleanPreferencesKey("KEY_AUTO_START")
+        val KEY_PLANET_SKIN = stringPreferencesKey("planet_skin")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[KEY_FOCUS_MINUTES] ?: 25 }
@@ -74,6 +76,14 @@ class SettingsRepository(
     }
 
     val autoStart: Flow<Boolean> = dataStore.data.map { it[KEY_AUTO_START] ?: false }
+
+    val planetSkin: Flow<PlanetSkin> = dataStore.data.map { prefs ->
+        val name = prefs[KEY_PLANET_SKIN] ?: PlanetSkin.EARTH.name
+        runCatching { PlanetSkin.valueOf(name) }.getOrDefault(PlanetSkin.EARTH)
+    }
+
+    suspend fun updatePlanetSkin(skin: PlanetSkin) =
+        update(KEY_PLANET_SKIN, skin.name)
 
     suspend fun <T> update(key: Preferences.Key<T>, value: T) {
         dataStore.edit { preferences ->

@@ -3,6 +3,7 @@ package com.focusfirst.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focusfirst.data.SettingsRepository
+import com.focusfirst.data.model.PlanetSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -174,6 +175,19 @@ class SettingsViewModel @Inject constructor(
     fun updateAutoStart(value: Boolean) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_AUTO_START, value)
+        }
+    }
+
+    val planetSkin: StateFlow<PlanetSkin> = settingsRepository.planetSkin
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = PlanetSkin.EARTH,
+        )
+
+    fun updatePlanetSkin(skin: PlanetSkin) {
+        viewModelScope.launch {
+            settingsRepository.updatePlanetSkin(skin)
         }
     }
 }

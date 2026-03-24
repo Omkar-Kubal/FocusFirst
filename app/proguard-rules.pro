@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ── SceneView / Filament ──────────────────────────────────────────────────────
+# Keep Filament JNI entry points and native bindings
+-keep class com.google.android.filament.** { *; }
+-keep class io.github.sceneview.** { *; }
+# Keep GLB/GLTF asset loader reflection classes
+-keep class com.google.android.filament.gltfio.** { *; }
+# Keep kotlin-math used for Float3 rotation
+-keep class dev.romainguy.kotlin.math.** { *; }

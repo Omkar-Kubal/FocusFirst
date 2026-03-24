@@ -11,6 +11,7 @@ dataStore           = "1.1.1"
 coroutines          = "1.9.0"
 playBilling         = "7.1.1"
 glance              = "1.1.1"
+sceneview           = "2.2.1"
 coreKtx             = "1.15.0"
 lifecycle           = "2.8.7"
 navigationCompose   = "2.8.5"
@@ -78,6 +79,9 @@ play-billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", 
 # Glance (Widget)
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+
+# SceneView (3D / Filament)
+sceneview-lib = { group = "io.github.sceneview", name = "sceneview", version.ref = "sceneview" }
 
 # Test
 junit                = { group = "junit",                name = "junit",          version.ref = "junit" }
