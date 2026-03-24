@@ -24,6 +24,9 @@ import javax.inject.Singleton
  * Usage in a ViewModel or Service:
  *   @Inject lateinit var sessionDao: SessionDao
  *   @Inject lateinit var settingsRepository: SettingsRepository
+ *
+ * Note: [com.focusfirst.billing.BillingManager] is provided automatically by
+ * Hilt via its @Inject constructor — no explicit @Provides entry is required here.
  */
 @Module
 @InstallIn(SingletonComponent::class)

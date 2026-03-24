@@ -50,6 +50,8 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.focusfirst.billing.BillingViewModel
+import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.screens.HomeScreen
 import com.focusfirst.ui.screens.SettingsScreen
@@ -110,6 +112,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
+            val billingViewModel: BillingViewModel = hiltViewModel()
             val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
             val amoledMode by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
@@ -123,6 +126,16 @@ class MainActivity : ComponentActivity() {
                 FocusFirstAppContent(
                     showNotificationRationale = showNotificationRationale,
                 )
+
+                // Global Pro upgrade sheet — triggered from anywhere in the app
+                val showUpgradeSheet by billingViewModel.showUpgradeSheet
+                    .collectAsStateWithLifecycle()
+                if (showUpgradeSheet) {
+                    ProUpgradeSheet(
+                        onDismiss        = { billingViewModel.dismissUpgradeSheet() },
+                        billingViewModel = billingViewModel,
+                    )
+                }
             }
         }
     }

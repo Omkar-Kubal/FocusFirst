@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -47,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.focusfirst.billing.BillingViewModel
+import com.focusfirst.billing.ProBadge
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.LocalFocusDarkTheme
 import com.focusfirst.viewmodel.SettingsViewModel
@@ -59,6 +62,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    billingViewModel: BillingViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
 
@@ -72,6 +76,7 @@ fun SettingsScreen(
     val soundType by settingsViewModel.soundType.collectAsStateWithLifecycle()
     val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val amoledMode by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
+    val isPro by billingViewModel.isPro.collectAsStateWithLifecycle()
 
     val scheme = MaterialTheme.colorScheme
     val dark   = LocalFocusDarkTheme.current
@@ -93,7 +98,10 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            ProFeaturesCard()
+            ProFeaturesCard(
+                isPro   = isPro,
+                onUpgrade = { billingViewModel.openUpgradeSheet() },
+            )
 
             Spacer(Modifier.height(20.dp))
 
@@ -184,8 +192,9 @@ fun SettingsScreen(
                     iconTint = Color(0xFF5856D6),
                     title    = "Background Noise",
                     subtitle = soundType,
+                    proBadge = true,
                     scheme   = scheme,
-                    onClick  = { /* V2 sound picker */ },
+                    onClick  = { billingViewModel.openUpgradeSheet() },
                 )
                 Spacer(Modifier.height(12.dp))
                 TimerSettingsRow(
@@ -218,6 +227,7 @@ fun SettingsScreen(
                         icon        = Icons.Outlined.Timer,
                         iconTint    = Color(0xFF8E8E93),
                         label       = "AMOLED black",
+                        proBadge    = true,
                         trailing    = {
                             Switch(
                                 checked         = amoledMode,
@@ -319,7 +329,10 @@ private fun SettingsTopBar() {
 }
 
 @Composable
-private fun ProFeaturesCard() {
+private fun ProFeaturesCard(
+    isPro: Boolean,
+    onUpgrade: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,42 +340,76 @@ private fun ProFeaturesCard() {
             .background(FocusColors.ProCardBackground)
             .padding(20.dp),
     ) {
-        Text(
-            text       = "Pro Features",
-            fontSize   = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            color      = Color.White,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text          = "UNLOCK FULL POTENTIAL",
-            fontSize      = 10.sp,
-            fontWeight    = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            color         = Color.White.copy(alpha = 0.55f),
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text     = "Custom focus sounds, detailed analytics, and more — coming soon.",
-            fontSize = 13.sp,
-            color    = Color.White.copy(alpha = 0.75f),
-        )
-        Spacer(Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White)
-                .clickable { /* billing V2 */ }
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center,
-        ) {
+        if (isPro) {
+            // Active Pro state
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text       = "Toki Pro",
+                    fontSize   = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = Color.White,
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF34C759).copy(alpha = 0.2f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text          = "ACTIVE",
+                        fontSize      = 10.sp,
+                        fontWeight    = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color         = Color(0xFF34C759),
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
             Text(
-                text       = "Upgrade Now",
-                fontSize   = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color      = Color.Black,
+                text     = "All features unlocked. Thank you for supporting Toki!",
+                fontSize = 13.sp,
+                color    = Color.White.copy(alpha = 0.7f),
             )
+        } else {
+            // Upgrade prompt
+            Text(
+                text       = "Pro Features",
+                fontSize   = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color      = Color.White,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text          = "UNLOCK FULL POTENTIAL",
+                fontSize      = 10.sp,
+                fontWeight    = FontWeight.SemiBold,
+                letterSpacing = 1.2.sp,
+                color         = Color.White.copy(alpha = 0.55f),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text     = "Sounds, analytics, AMOLED mode, export, and more — one-time ₹149.",
+                fontSize = 13.sp,
+                color    = Color.White.copy(alpha = 0.75f),
+            )
+            Spacer(Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White)
+                    .clickable(onClick = onUpgrade)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text       = "Upgrade Now — ₹149",
+                    fontSize   = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = Color.Black,
+                )
+            }
         }
     }
 }
@@ -402,10 +449,11 @@ private fun SectionLabel(text: String, color: Color) {
 
 @Composable
 private fun TimerSettingsRow(
-    icon:     ImageVector,
-    iconTint: Color,
-    label:    String,
-    trailing: @Composable () -> Unit,
+    icon:      ImageVector,
+    iconTint:  Color,
+    label:     String,
+    proBadge:  Boolean = false,
+    trailing:  @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Row(
@@ -421,6 +469,10 @@ private fun TimerSettingsRow(
                 fontSize = 15.sp,
                 color    = scheme.onSurface,
             )
+            if (proBadge) {
+                Spacer(Modifier.width(6.dp))
+                ProBadge()
+            }
         }
         trailing()
     }
@@ -545,12 +597,13 @@ private fun SegmentedIntRow(
 
 @Composable
 private fun PlaceholderChevronRow(
-    icon:     ImageVector,
-    iconTint: Color,
-    title:    String,
-    subtitle: String,
-    scheme:   androidx.compose.material3.ColorScheme,
-    onClick:  () -> Unit,
+    icon:      ImageVector,
+    iconTint:  Color,
+    title:     String,
+    subtitle:  String,
+    proBadge:  Boolean = false,
+    scheme:    androidx.compose.material3.ColorScheme,
+    onClick:   () -> Unit,
 ) {
     Row(
         modifier              = Modifier
@@ -564,11 +617,17 @@ private fun PlaceholderChevronRow(
             BadgeIcon(icon = icon, tint = iconTint)
             Spacer(Modifier.size(12.dp))
             Column {
-                Text(
-                    text     = title,
-                    fontSize = 15.sp,
-                    color    = scheme.onSurface,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text     = title,
+                        fontSize = 15.sp,
+                        color    = scheme.onSurface,
+                    )
+                    if (proBadge) {
+                        Spacer(Modifier.width(6.dp))
+                        ProBadge()
+                    }
+                }
                 Text(
                     text     = subtitle,
                     fontSize = 12.sp,
