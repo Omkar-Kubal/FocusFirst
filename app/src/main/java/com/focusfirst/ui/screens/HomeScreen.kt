@@ -74,9 +74,10 @@ fun HomeScreen(
     settingsViewModel:    SettingsViewModel = hiltViewModel(),
     onNavigateToSettings: () -> Unit        = {},
 ) {
-    val timerState by viewModel.timerState.collectAsStateWithLifecycle()
-    val todayCount by viewModel.todayCount.collectAsStateWithLifecycle()
-    val dailyGoal by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
+    val timerState  by viewModel.timerState.collectAsStateWithLifecycle()
+    val todayCount  by viewModel.todayCount.collectAsStateWithLifecycle()
+    val streakDays  by viewModel.streakDays.collectAsStateWithLifecycle()
+    val dailyGoal   by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
@@ -192,6 +193,7 @@ fun HomeScreen(
         BentoStatsRow(
             todayCount = todayCount,
             dailyGoal  = dailyGoal,
+            streakDays = streakDays,
             modifier   = Modifier.padding(horizontal = 16.dp),
         )
 
@@ -378,12 +380,13 @@ private val BentoShape = RoundedCornerShape(16.dp)
 private fun BentoStatsRow(
     todayCount: Int,
     dailyGoal:  Int,
+    streakDays: Int,
     modifier:   Modifier = Modifier,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    val dark   = LocalFocusDarkTheme.current
-    val cardBg = if (dark) FocusColors.SurfaceContainerLow else scheme.surface
-    val border = if (dark) Color.White.copy(alpha = 0.08f) else scheme.outlineVariant.copy(alpha = 0.4f)
+    val scheme  = MaterialTheme.colorScheme
+    val dark    = LocalFocusDarkTheme.current
+    val cardBg  = if (dark) FocusColors.SurfaceContainerLow else scheme.surface
+    val border  = if (dark) Color.White.copy(alpha = 0.08f) else scheme.outlineVariant.copy(alpha = 0.4f)
     val goalDen = dailyGoal.coerceAtLeast(1)
     val progress = (todayCount / goalDen.toFloat()).coerceIn(0f, 1f)
 
@@ -392,6 +395,7 @@ private fun BentoStatsRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
 
+        // ── Daily goal card ───────────────────────────────────────────────────
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -432,6 +436,7 @@ private fun BentoStatsRow(
             }
         }
 
+        // ── Streak card ───────────────────────────────────────────────────────
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -449,17 +454,25 @@ private fun BentoStatsRow(
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text       = "0",
+                    text       = if (streakDays == 0) "—" else "$streakDays",
                     fontSize   = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color      = scheme.onSurface,
                 )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text     = "\uD83D\uDD25",
-                    fontSize = 18.sp,
-                )
+                if (streakDays >= 7) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text     = "\uD83D\uDD25",   // 🔥
+                        fontSize = 18.sp,
+                    )
+                }
             }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text     = "day streak",
+                fontSize = 11.sp,
+                color    = scheme.onSurfaceVariant,
+            )
         }
     }
 }

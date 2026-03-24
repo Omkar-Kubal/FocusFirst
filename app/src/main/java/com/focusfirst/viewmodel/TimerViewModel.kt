@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -120,6 +121,23 @@ class TimerViewModel @Inject constructor(
             scope        = viewModelScope,
             started      = SharingStarted.WhileSubscribed(5_000L),
             initialValue = emptyList(),
+        )
+
+    /**
+     * Current consecutive-day focus streak.
+     *
+     * A streak is valid when either today or yesterday has at least one
+     * completed session — this preserves the count for users who haven't
+     * started today yet.  The streak resets to 0 if the most-recent
+     * completed day is older than yesterday.
+     */
+    val streakDays: StateFlow<Int> = sessionDao
+        .observeCompletedDays()
+        .map { days -> computeStreak(days) }
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = 0,
         )
 
     // ========================================================================
@@ -399,6 +417,49 @@ class TimerViewModel @Inject constructor(
         localBroadcastManager.unregisterReceiver(timerReceiver)
         Log.d(TAG, "onCleared: BroadcastReceiver unregistered")
         super.onCleared()
+    }
+
+    // ========================================================================
+    // Companion
+    // ========================================================================
+
+    // ========================================================================
+    // Private — streak computation
+    // ========================================================================
+
+    /**
+     * Counts how many consecutive calendar days (epoch-day units) appear at
+     * the head of [epochDays], which must already be sorted descending.
+     *
+     * The streak is considered "alive" if the most-recent completed day is
+     * either **today** or **yesterday** — this covers the case where the user
+     * hasn't focused yet today but maintained a streak until yesterday.
+     *
+     * Returns 0 when:
+     *   - the list is empty
+     *   - the most-recent day is older than yesterday
+     */
+    private fun computeStreak(epochDays: List<Long>): Int {
+        if (epochDays.isEmpty()) return 0
+        val todayEpochDay     = System.currentTimeMillis() / 86_400_000L
+        val yesterdayEpochDay = todayEpochDay - 1
+        val sortedDays        = epochDays.sortedDescending()
+        val mostRecent        = sortedDays.first()
+
+        // Streak expired if no session on today or yesterday
+        if (mostRecent < yesterdayEpochDay) return 0
+
+        var streak   = 0
+        var expected = mostRecent
+        for (day in sortedDays) {
+            if (day == expected) {
+                streak++
+                expected--
+            } else {
+                break
+            }
+        }
+        return streak
     }
 
     // ========================================================================

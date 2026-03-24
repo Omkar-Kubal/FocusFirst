@@ -75,6 +75,7 @@ fun StatsScreen(
     val summaries14    by viewModel.dailySummaries14d.collectAsStateWithLifecycle()
     val recentSessions by viewModel.recentSessions.collectAsStateWithLifecycle()
     val dailyGoal      by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
+    val streakDays     by viewModel.streakDays.collectAsStateWithLifecycle()
 
     val goalDen = dailyGoal.coerceAtLeast(1)
     val masteryPct =
@@ -140,6 +141,14 @@ fun StatsScreen(
                     totalCompleted = totalCompleted,
                     dark           = dark,
                     scheme         = scheme,
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                StreakCard(
+                    streakDays = streakDays,
+                    dark       = dark,
+                    scheme     = scheme,
                 )
 
                 Spacer(Modifier.height(20.dp))
@@ -367,6 +376,76 @@ private fun SummaryMiniCard(
             fontSize = 12.sp,
             color    = scheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun StreakCard(
+    streakDays: Int,
+    dark:       Boolean,
+    scheme:     androidx.compose.material3.ColorScheme,
+) {
+    val cardBg = if (dark) Color.White.copy(alpha = 0.07f) else scheme.surface
+    val border = if (dark) Color.White.copy(alpha = 0.1f) else scheme.outlineVariant.copy(alpha = 0.35f)
+    val showFlame = streakDays >= 7
+
+    val motivational = when {
+        streakDays == 0   -> "Start your streak today"
+        streakDays < 7    -> "Keep it going!"
+        streakDays < 14   -> "One week strong!"
+        streakDays < 30   -> "Two weeks of focus!"
+        else              -> "Elite focuser!"
+    }
+
+    Row(
+        modifier          = Modifier
+            .fillMaxWidth()
+            .border(1.dp, border, CardShape)
+            .background(cardBg, CardShape)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text          = "STREAK",
+                fontSize      = 10.sp,
+                fontWeight    = FontWeight.SemiBold,
+                letterSpacing = 1.2.sp,
+                color         = scheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text       = if (streakDays == 0) "—" else "$streakDays",
+                    fontSize   = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = scheme.onSurface,
+                )
+                if (streakDays > 0) {
+                    androidx.compose.foundation.layout.Spacer(
+                        Modifier.size(6.dp)
+                    )
+                    Text(
+                        text     = if (streakDays == 1) "day" else "days",
+                        fontSize = 16.sp,
+                        color    = scheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text     = motivational,
+                fontSize = 13.sp,
+                color    = if (showFlame) Color(0xFFFF9500) else scheme.onSurfaceVariant,
+            )
+        }
+
+        if (showFlame) {
+            Text(
+                text     = "\uD83D\uDD25",   // 🔥
+                fontSize = 36.sp,
+            )
+        }
     }
 }
 

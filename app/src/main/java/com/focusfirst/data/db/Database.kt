@@ -122,6 +122,21 @@ interface SessionDao {
      */
     @Query("SELECT COUNT(*) FROM sessions WHERE startedAt >= :todayStartMs")
     fun observeTodayCount(todayStartMs: Long): Flow<Int>
+
+    /**
+     * Distinct calendar days (epoch-day = startedAt / 86_400_000) on which the
+     * user completed at least one session, ordered newest first.
+     *
+     * Used by [com.focusfirst.viewmodel.TimerViewModel.streakDays] to compute
+     * the current consecutive-day streak.
+     */
+    @Query("""
+        SELECT DISTINCT (startedAt / 86400000) AS epochDay
+        FROM   sessions
+        WHERE  wasCompleted = 1
+        ORDER  BY epochDay DESC
+    """)
+    fun observeCompletedDays(): Flow<List<Long>>
 }
 
 // ============================================================================
