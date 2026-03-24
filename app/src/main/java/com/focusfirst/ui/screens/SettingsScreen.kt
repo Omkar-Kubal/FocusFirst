@@ -263,11 +263,11 @@ fun SettingsScreen(
                             type = "text/plain"
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "Check out FocusFirst — a clean Pomodoro timer with zero ads! " +
+                                "Check out Toki — a clean Pomodoro timer with zero ads! " +
                                     "https://play.google.com/store/apps/details?id=com.focusfirst",
                             )
                         }
-                        context.startActivity(Intent.createChooser(send, "Share FocusFirst"))
+                        context.startActivity(Intent.createChooser(send, "Share Toki"))
                     },
                 )
             }
@@ -275,7 +275,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(32.dp))
 
             Text(
-                text       = "FOCUSFIRST V1.0.0",
+                text       = "TOKI V1.0.0",
                 fontSize   = 12.sp,
                 letterSpacing = 1.sp,
                 color      = scheme.onSurfaceVariant,
