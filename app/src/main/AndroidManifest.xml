@@ -17,9 +17,6 @@
     <!-- ── Network (Play Billing only) ───────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- ── OpenGL ES 3.0 (required by Filament) ──────────────────────── -->
-    <uses-feature android:glEsVersion="0x00030000" android:required="false" />
-
     <application
         android:name=".FocusFirstApp"
         android:allowBackup="true"

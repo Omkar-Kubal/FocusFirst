@@ -46,16 +46,6 @@ android {
         buildConfig  = true
     }
 
-    packaging {
-        jniLibs {
-            // useLegacyPackaging = true → .so files are extracted to disk on install.
-            // Required because Filament's AARs store .so compressed (Deflate ~60%);
-            // Android cannot load a compressed .so directly from the APK zip entry,
-            // so the "load from APK" path silently fails for Filament JNI methods.
-            // AGP 8.x still applies 16 KB page-size alignment when building the APK.
-            useLegacyPackaging = true
-        }
-    }
 }
 
 dependencies {
@@ -109,11 +99,6 @@ dependencies {
     // ── Glance (home-screen widget) ───────────────────────────────────────
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
-
-    // ── Filament (GLB planet rendering) ───────────────────────────────────
-    implementation(libs.filament.android)
-    implementation(libs.filament.gltfio)
-    implementation(libs.filament.utils)
 
     // ── Test ──────────────────────────────────────────────────────────────
     testImplementation(libs.junit)

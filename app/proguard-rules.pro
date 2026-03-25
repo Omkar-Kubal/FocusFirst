@@ -19,8 +19,3 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
-
-# ── Filament ──────────────────────────────────────────────────────────────
--keep class com.google.android.filament.**       { *; }
--keep class com.google.android.filament.utils.** { *; }
--keep class com.google.android.filament.gltfio.** { *; }
