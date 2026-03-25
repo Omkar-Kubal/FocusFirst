@@ -1,7 +1,6 @@
 package com.focusfirst.ui.screens
 
 import android.content.Intent
-import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,22 +39,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.layer.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focusfirst.BuildConfig
@@ -70,9 +63,7 @@ import com.focusfirst.ui.components.PlanetView
 import com.focusfirst.ui.components.SkinSelectorSheet
 import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TimerViewModel
-import java.io.File
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun PlanetScreen(
@@ -88,8 +79,8 @@ fun PlanetScreen(
     val selectedSkin   by settingsViewModel.planetSkin.collectAsStateWithLifecycle()
 
     // ── Debug mode ────────────────────────────────────────────────────────────
-    var debugTapCount       by remember { mutableStateOf(0) }
-    var debugMode           by remember { mutableStateOf(false) }
+    var debugTapCount        by remember { mutableStateOf(0) }
+    var debugMode            by remember { mutableStateOf(false) }
     var debugSessionOverride by remember { mutableStateOf<Int?>(null) }
 
     // All stage calculations use the override when active, real data otherwise.
@@ -116,10 +107,7 @@ fun PlanetScreen(
         }
     }
 
-    // ── Share via GraphicsLayer ───────────────────────────────────────────────
-    val graphicsLayer  = rememberGraphicsLayer()
-    val coroutineScope = rememberCoroutineScope()
-    val context        = LocalContext.current
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -173,19 +161,11 @@ fun PlanetScreen(
                 .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .drawWithContent {
-                        graphicsLayer.record { this@drawWithContent.drawContent() }
-                        drawLayer(graphicsLayer)
-                    },
-            ) {
-                PlanetView(
-                    modelPath = modelPath,
-                    size      = 280.dp,
-                )
-            }
+            PlanetView(
+                modelPath = modelPath,
+                modifier  = Modifier.align(Alignment.Center),
+                size      = 280.dp,
+            )
 
             // Stage label pill
             Column(
@@ -307,32 +287,17 @@ fun PlanetScreen(
         ) {
             FloatingActionButton(
                 onClick = {
-                    coroutineScope.launch {
-                        val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-
-                        val file = File(context.cacheDir, "toki_world.png")
-                        file.outputStream().use { out ->
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
-                        }
-
-                        val uri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            file,
-                        )
-
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "image/png"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "My world has $totalCompleted focus sessions " +
-                                    "with Toki ✨ — Zero ads, one tap timer",
-                            )
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Share your world"))
+                    val shareText = buildString {
+                        append("My ${selectedSkin.displayName} is at stage $currentStage on Toki! ")
+                        append("$totalCompleted focus sessions completed")
+                        if (streakDays > 0) append(" • $streakDays day streak")
+                        append(" 🌍")
                     }
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share your world"))
                 },
                 modifier       = Modifier
                     .align(Alignment.CenterEnd)
@@ -414,21 +379,17 @@ private fun DebugPanel(
                 debugStageThresholds.forEachIndexed { index, threshold ->
                     val stage = index + 1
                     OutlinedButton(
-                        onClick          = { onOverrideSelected(threshold) },
-                        modifier         = Modifier.weight(1f),
-                        contentPadding   = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
-                        border           = BorderStroke(
+                        onClick        = { onOverrideSelected(threshold) },
+                        modifier       = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
+                        border         = BorderStroke(
                             1.dp,
-                            if (debugSessionOverride == threshold)
-                                debugRed
-                            else
-                                debugRed.copy(alpha = 0.35f),
+                            if (debugSessionOverride == threshold) debugRed
+                            else debugRed.copy(alpha = 0.35f),
                         ),
-                        colors           = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (debugSessionOverride == threshold)
-                                debugRed
-                            else
-                                Color.White.copy(alpha = 0.7f),
+                        colors         = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (debugSessionOverride == threshold) debugRed
+                                           else Color.White.copy(alpha = 0.7f),
                         ),
                     ) {
                         Text(text = "S$stage", fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -436,7 +397,6 @@ private fun DebugPanel(
                 }
             }
 
-            // Clear override
             TextButton(
                 onClick  = onClearOverride,
                 modifier = Modifier.fillMaxWidth(),

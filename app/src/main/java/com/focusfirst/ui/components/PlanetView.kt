@@ -8,7 +8,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,9 +47,9 @@ fun PlanetView(
     val modelLoader       = rememberModelLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
 
-    var isLoading     by remember { mutableStateOf(true) }
-    // Accumulate rotation separately to avoid floating-point drift from read-back.
-    var rotationAngle by remember(modelPath) { mutableFloatStateOf(0f) }
+    var isLoading   by remember { mutableStateOf(true) }
+    // Plain FloatArray — not Compose state, so onFrame updates don't trigger recomposition.
+    val rotationRef = remember(modelPath) { floatArrayOf(0f) }
 
     val modelNode = remember(modelPath) {
         val instance = try {
@@ -92,9 +91,9 @@ fun PlanetView(
             isOpaque          = false,
             onFrame           = { _ ->
                 if (isLoading) isLoading = false
-                // Fixed increment per frame — intervalSeconds unavailable in this SceneView version
-                rotationAngle += 0.005f
-                modelNode.rotation = Float3(0f, rotationAngle, 0f)
+                // 0.3 deg/frame × 60 fps ≈ 18 deg/sec → ~20 sec full rotation
+                rotationRef[0] = (rotationRef[0] + 0.3f) % 360f
+                modelNode.rotation = Float3(0f, rotationRef[0], 0f)
             },
         )
 

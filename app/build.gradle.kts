@@ -46,9 +46,12 @@ android {
         buildConfig  = true
     }
 
-    sourceSets {
-        getByName("main") {
-            assets.srcDirs("src/main/assets")
+    packaging {
+        jniLibs {
+            // Required for 16 KB page-size compatibility (Play Store mandate, Nov 2025).
+            // Libraries are stored uncompressed and loaded directly from the APK,
+            // which lets the OS honour proper alignment without extracting to disk.
+            useLegacyPackaging = false
         }
     }
 }

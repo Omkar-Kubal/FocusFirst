@@ -123,6 +123,15 @@ class TimerViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    /** All sessions ever recorded, newest first. Used by the heatmap in StatsScreen. */
+    val allSessions: StateFlow<List<SessionEntity>> = sessionDao
+        .observeAll()
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList(),
+        )
+
     /**
      * Current consecutive-day focus streak.
      *
