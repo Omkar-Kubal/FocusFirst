@@ -17,10 +17,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -55,7 +54,6 @@ import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.screens.HomeScreen
-import com.focusfirst.ui.screens.PlanetScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
@@ -69,7 +67,7 @@ import javax.inject.Inject
 // Navigation
 // ============================================================================
 
-private enum class Tab { HOME, PLANET, STATS, SETTINGS }
+private enum class Tab { HOME, STATS, SETTINGS }
 
 private data class TabItem(
     val tab:   Tab,
@@ -78,8 +76,7 @@ private data class TabItem(
 )
 
 private val tabs = listOf(
-    TabItem(Tab.HOME,     "TIMER",   Icons.Outlined.Timer),
-    TabItem(Tab.PLANET,   "WORLD",   Icons.Outlined.Public),
+    TabItem(Tab.HOME,     "TIMER",   Icons.Filled.Timer),
     TabItem(Tab.STATS,    "STATS",   Icons.Outlined.BarChart),
     TabItem(Tab.SETTINGS, "PROFILE", Icons.Outlined.Person),
 )
@@ -141,7 +138,7 @@ class MainActivity : ComponentActivity() {
                     ProUpgradeSheet(
                         onDismiss          = { billingViewModel.dismissUpgradeSheet() },
                         onNavigateToPlanet = {
-                            selectedTab = Tab.PLANET
+                            selectedTab = Tab.STATS
                             billingViewModel.dismissUpgradeSheet()
                         },
                         billingViewModel   = billingViewModel,
@@ -243,7 +240,6 @@ private fun FocusFirstAppContent(
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
-                Tab.PLANET   -> PlanetScreen()
                 Tab.STATS    -> StatsScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )

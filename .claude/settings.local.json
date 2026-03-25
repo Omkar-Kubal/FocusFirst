@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:/Users/user/StudioProjects/FocusFirst/app/src/main/assets -name *.glb)",
+      "WebFetch(domain:repo.maven.apache.org)",
+      "WebFetch(domain:dl.google.com)",
+      "Bash(./gradlew :app:dependencies --configuration debugRuntimeClasspath)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(find C:/Users/user/StudioProjects/FocusFirst/app/build -name *.aar)",
+      "Bash(xargs -I{} unzip -l {})",
+      "Bash(xargs -I{} unzip -v {})",
+      "Read(//c/Users/user/AppData/Local/Android/Sdk/platform-tools/**)",
+      "Bash(./adb.exe uninstall:*)",
+      "Bash(./gradlew.bat installDebug)",
+      "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
+      "Read(//c/Program Files/Android/Android Studio/jre/bin/**)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew.bat installDebug)"
+    ]
+  }
+}

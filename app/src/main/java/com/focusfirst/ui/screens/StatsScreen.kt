@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -100,7 +102,6 @@ fun StatsScreen(
     val allSessions    by timerViewModel.allSessions.collectAsStateWithLifecycle()
 
     // ── Debug state (DEBUG builds only) ──────────────────────────────────────
-    var debugTapCount        by remember { mutableStateOf(0) }
     var debugMode            by remember { mutableStateOf(false) }
     var debugSessionOverride by remember { mutableStateOf<Int?>(null) }
 
@@ -135,19 +136,13 @@ fun StatsScreen(
         // 1 · Planet hero — edge to edge
         item {
             PlanetHeroSection(
-                modelPath     = modelPath,
-                stageLabel    = stageLabel,
-                sessionsLeft  = sessionsLeft,
-                stageProgress = stageProgress,
-                currentStage  = currentStage,
-                onShowSkin    = { showSkinSheet = true },
-                onDebugTap    = {
-                    debugTapCount++
-                    if (debugTapCount >= 5) {
-                        debugMode     = true
-                        debugTapCount = 0
-                    }
-                },
+                modelPath        = modelPath,
+                stageLabel       = stageLabel,
+                sessionsLeft     = sessionsLeft,
+                stageProgress    = stageProgress,
+                currentStage     = currentStage,
+                onShowSkin       = { showSkinSheet = true },
+                onActivateDebug  = { debugMode = !debugMode },
             )
         }
 
@@ -219,18 +214,35 @@ fun StatsScreen(
 
 @Composable
 private fun PlanetHeroSection(
-    modelPath:     String,
-    stageLabel:    String,
-    sessionsLeft:  Int?,
-    stageProgress: Float,
-    currentStage:  Int,
-    onShowSkin:    () -> Unit,
-    onDebugTap:    () -> Unit,
+    modelPath:       String,
+    stageLabel:      String,
+    sessionsLeft:    Int?,
+    stageProgress:   Float,
+    currentStage:    Int,
+    onShowSkin:      () -> Unit,
+    onActivateDebug: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(340.dp),
+            .height(340.dp)
+            .pointerInput(Unit) {
+                var tapCount = 0
+                var lastTap  = 0L
+                detectTapGestures {
+                    val now = System.currentTimeMillis()
+                    if (now - lastTap < 500L) {
+                        tapCount++
+                        if (tapCount >= 5) {
+                            onActivateDebug()
+                            tapCount = 0
+                        }
+                    } else {
+                        tapCount = 1
+                    }
+                    lastTap = now
+                }
+            },
     ) {
         // Dark green ambient glow
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -297,12 +309,11 @@ private fun PlanetHeroSection(
                 .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Stage pill — also the 5-tap debug trigger
+            // Stage pill
             Surface(
-                color    = Color.Black.copy(alpha = 0.6f),
-                shape    = RoundedCornerShape(50.dp),
-                border   = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
-                modifier = Modifier.clickable(onClick = onDebugTap),
+                color  = Color.Black.copy(alpha = 0.6f),
+                shape  = RoundedCornerShape(50.dp),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
             ) {
                 Text(
                     text     = stageLabel,
@@ -923,8 +934,8 @@ private fun DebugPanel(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text          = "DEBUG MODE",
-                fontSize      = 10.sp,
+                text          = "⚠ DEBUG MODE ACTIVE",
+                fontSize      = 11.sp,
                 fontWeight    = FontWeight.Bold,
                 letterSpacing = 1.sp,
                 color         = debugRed,

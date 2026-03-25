@@ -17,12 +17,8 @@
     <!-- ── Network (Play Billing only) ───────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- ── SceneView / Filament requires OpenGL ES 3.0 ───────────────── -->
-    <!-- required="false" avoids filtering on devices that can still run  -->
-    <!-- the app without full 3D hardware acceleration                    -->
-    <uses-feature
-        android:glEsVersion="0x00030000"
-        android:required="false" />
+    <!-- ── OpenGL ES 3.0 (required by Filament) ──────────────────────── -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="false" />
 
     <application
         android:name=".FocusFirstApp"
@@ -32,8 +28,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FocusFirst"
-        android:extractNativeLibs="false">
+        android:theme="@style/Theme.FocusFirst">
 
         <!-- ── Main Activity ─────────────────────────────────────────── -->
         <activity

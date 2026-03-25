@@ -228,7 +228,7 @@ private fun HomeTopBar(onSettingsClick: () -> Unit) {
         }
 
         Text(
-            text       = "Focus",
+            text       = "Toki",
             fontSize   = 18.sp,
             fontWeight = FontWeight.SemiBold,
             color      = scheme.onSurface,
