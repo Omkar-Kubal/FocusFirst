@@ -33,6 +33,10 @@ import io.github.sceneview.rememberModelLoader
  * [modelPath] maps to app/src/main/assets/ — e.g. "models/earth_stage1.glb".
  * [isOpaque] = false keeps the SceneView background transparent so the
  * parent #000000 surface shows through.
+ *
+ * If a GLB is missing (e.g. future skins not yet shipped), falls back to
+ * earth_stage1.glb. Earth and Mars files are guaranteed present and will
+ * re-throw rather than silently falling back.
  */
 @Composable
 fun PlanetView(
@@ -52,8 +56,13 @@ fun PlanetView(
         val instance = try {
             modelLoader.createModelInstance(modelPath)
         } catch (e: Exception) {
-            Log.w("PlanetView", "Model not found: $modelPath, falling back to earth")
-            modelLoader.createModelInstance("models/earth_stage1.glb")
+            val fallback = getFallbackPath(modelPath)
+            if (fallback != modelPath) {
+                Log.w("PlanetView", "Model not found: $modelPath, falling back to $fallback")
+                modelLoader.createModelInstance(fallback)
+            } else {
+                throw e  // re-throw if even the primary path should exist
+            }
         }
         ModelNode(
             modelInstance = instance,
@@ -83,7 +92,7 @@ fun PlanetView(
             isOpaque          = false,
             onFrame           = { _ ->
                 if (isLoading) isLoading = false
-                // Fixed increment per frame as intervalSeconds is not available in this version's onFrame
+                // Fixed increment per frame — intervalSeconds unavailable in this SceneView version
                 rotationAngle += 0.005f
                 modelNode.rotation = Float3(0f, rotationAngle, 0f)
             },
@@ -96,5 +105,23 @@ fun PlanetView(
                 strokeWidth = 1.dp,
             )
         }
+    }
+}
+
+/**
+ * Returns the path to use when [modelPath] fails to load.
+ *
+ * - earth / mars  → these files are present; return the same path so the
+ *   caller re-throws and the real error surfaces.
+ * - all other skins (ocean, ice, lava, alien) → not yet shipped; fall back
+ *   to earth_stage1.glb silently.
+ */
+private fun getFallbackPath(modelPath: String): String {
+    val skin = modelPath
+        .substringAfter("models/")
+        .substringBefore("_stage")
+    return when (skin) {
+        "earth", "mars" -> modelPath                   // guaranteed present — let it throw
+        else            -> "models/earth_stage1.glb"   // future skins not yet shipped
     }
 }

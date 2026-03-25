@@ -5,12 +5,12 @@ enum class PlanetSkin(
     val isPro: Boolean,
     val description: String,
 ) {
-    EARTH("Earth", false, "A living world grows with every session"),
-    MARS("Mars", true, "Transform a dead planet into New Mars"),
-    OCEAN("Ocean World", true, "A bioluminescent deep ocean world"),
-    ICE("Ice Giant", true, "Crystal formations and dancing auroras"),
-    LAVA("Lava World", true, "Volcanic inferno slowly cooling"),
-    ALIEN("Alien World", true, "Exotic purple lifeforms emerge"),
+    EARTH("Earth",       false, "Barren rock → thriving world"),
+    MARS ("Mars",        true,  "Dead planet → terraformed New Mars"),
+    OCEAN("Ocean World", true,  "Frozen void → bioluminescent deep sea"),
+    ICE  ("Ice Giant",   true,  "Dark crystal → dancing auroras"),
+    LAVA ("Lava World",  true,  "Cooling magma → volcanic inferno"),
+    ALIEN("Alien World", true,  "Empty void → exotic alien civilization"),
 }
 
 fun PlanetSkin.modelPath(stage: Int): String =

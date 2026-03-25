@@ -33,8 +33,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -259,46 +261,72 @@ private fun MiniPlanetPreview(
     skin: PlanetSkin,
     dimmed: Boolean = false,
 ) {
-    val base = skinBaseColor[skin] ?: Color.Gray
+    val base      = skinBaseColor[skin] ?: Color.Gray
     val baseAlpha = if (dimmed) 0.4f else 1f
 
     Canvas(modifier = Modifier.size(64.dp)) {
         val radius = size.minDimension / 2f
         val center = Offset(size.width / 2f, size.height / 2f)
 
-        // Base sphere
-        drawCircle(
-            color = base.copy(alpha = baseAlpha),
-            radius = radius,
-            center = center,
-        )
-
-        // Radial shine — top-left white highlight
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 0.15f * baseAlpha),
-                    Color.Transparent,
-                ),
-                center = Offset(center.x - radius * 0.3f, center.y - radius * 0.3f),
-                radius = radius * 0.8f,
-            ),
-            radius = radius,
-            center = center,
-        )
-
-        // Shadow — right side dark overlay
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color.Transparent,
-                    Color.Black.copy(alpha = 0.4f * baseAlpha),
-                ),
-                center = Offset(center.x + radius * 0.2f, center.y + radius * 0.2f),
-                radius = radius,
-            ),
-            radius = radius,
-            center = center,
-        )
+        when (skin) {
+            PlanetSkin.MARS -> {
+                // Base rust red
+                drawCircle(
+                    color  = Color(0xFF8B2500).copy(alpha = baseAlpha),
+                    radius = radius,
+                    center = center,
+                )
+                // Ice cap hint at top
+                drawArc(
+                    color       = Color(0xCCFFFFFF).copy(alpha = baseAlpha),
+                    startAngle  = 200f,
+                    sweepAngle  = 140f,
+                    useCenter   = false,
+                    topLeft     = Offset(center.x - radius * 0.7f, center.y - radius * 0.9f),
+                    size        = Size(radius * 1.4f, radius * 0.6f),
+                )
+                // Atmosphere edge hint
+                drawCircle(
+                    color  = Color(0x33E8884A).copy(alpha = baseAlpha),
+                    radius = radius * 1.05f,
+                    center = center,
+                    style  = Stroke(width = size.width * 0.06f),
+                )
+            }
+            else -> {
+                // Base sphere
+                drawCircle(
+                    color  = base.copy(alpha = baseAlpha),
+                    radius = radius,
+                    center = center,
+                )
+                // Radial shine — top-left white highlight
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.15f * baseAlpha),
+                            Color.Transparent,
+                        ),
+                        center = Offset(center.x - radius * 0.3f, center.y - radius * 0.3f),
+                        radius = radius * 0.8f,
+                    ),
+                    radius = radius,
+                    center = center,
+                )
+                // Shadow — right side dark overlay
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.4f * baseAlpha),
+                        ),
+                        center = Offset(center.x + radius * 0.2f, center.y + radius * 0.2f),
+                        radius = radius,
+                    ),
+                    radius = radius,
+                    center = center,
+                )
+            }
+        }
     }
 }

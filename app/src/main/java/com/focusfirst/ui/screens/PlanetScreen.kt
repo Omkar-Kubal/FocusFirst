@@ -2,11 +2,18 @@ package com.focusfirst.ui.screens
 
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Canvas as AndroidCanvas
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,21 +26,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.layer.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.focusfirst.BuildConfig
 import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.data.db.DailySummary
 import com.focusfirst.data.model.PlanetSkin
@@ -53,7 +71,8 @@ import com.focusfirst.ui.components.SkinSelectorSheet
 import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TimerViewModel
 import java.io.File
-import java.io.FileOutputStream
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlanetScreen(
@@ -68,15 +87,39 @@ fun PlanetScreen(
     val isPro          by billingViewModel.isPro.collectAsStateWithLifecycle()
     val selectedSkin   by settingsViewModel.planetSkin.collectAsStateWithLifecycle()
 
-    val currentStage = getStageForSessions(totalCompleted)
-    val stageLabel   = getStageLabel(selectedSkin, currentStage)
-    val nextStageAt  = getNextStageAt(totalCompleted)
-    val modelPath    = selectedSkin.modelPath(currentStage)
-    val stageProgress = computeStageProgress(totalCompleted)
-    val sessionsLeft  = nextStageAt?.minus(totalCompleted)
+    // ── Debug mode ────────────────────────────────────────────────────────────
+    var debugTapCount       by remember { mutableStateOf(0) }
+    var debugMode           by remember { mutableStateOf(false) }
+    var debugSessionOverride by remember { mutableStateOf<Int?>(null) }
+
+    // All stage calculations use the override when active, real data otherwise.
+    val effectiveSessions = debugSessionOverride ?: totalCompleted
+    val currentStage  = getStageForSessions(effectiveSessions)
+    val stageLabel    = getStageLabel(selectedSkin, currentStage)
+    val nextStageAt   = getNextStageAt(effectiveSessions)
+    val modelPath     = selectedSkin.modelPath(currentStage)
+    val stageProgress = computeStageProgress(effectiveSessions)
+    val sessionsLeft  = nextStageAt?.minus(effectiveSessions)
 
     var showSkinSheet by rememberSaveable { mutableStateOf(false) }
-    val context = LocalContext.current
+
+    // ── Stage-up celebration ──────────────────────────────────────────────────
+    var previousStage by rememberSaveable { mutableStateOf(currentStage) }
+    var showStageUp   by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentStage) {
+        if (currentStage > previousStage) {
+            showStageUp   = true
+            previousStage = currentStage
+            delay(3000)
+            showStageUp = false
+        }
+    }
+
+    // ── Share via GraphicsLayer ───────────────────────────────────────────────
+    val graphicsLayer  = rememberGraphicsLayer()
+    val coroutineScope = rememberCoroutineScope()
+    val context        = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -96,6 +139,13 @@ fun PlanetScreen(
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
+                    modifier = Modifier.clickable {
+                        debugTapCount++
+                        if (debugTapCount >= 5) {
+                            debugMode     = true
+                            debugTapCount = 0
+                        }
+                    },
                 )
                 Text(
                     text = "$totalCompleted sessions",
@@ -123,11 +173,19 @@ fun PlanetScreen(
                 .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
-            PlanetView(
-                modelPath = modelPath,
-                modifier  = Modifier.align(Alignment.Center),
-                size      = 280.dp,
-            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .drawWithContent {
+                        graphicsLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(graphicsLayer)
+                    },
+            ) {
+                PlanetView(
+                    modelPath = modelPath,
+                    size      = 280.dp,
+                )
+            }
 
             // Stage label pill
             Column(
@@ -141,9 +199,7 @@ fun PlanetScreen(
                     color = Color.Black.copy(alpha = 0.6f),
                     modifier = Modifier
                         .padding(bottom = 4.dp)
-                        .then(
-                            Modifier.padding(horizontal = 0.dp)
-                        ),
+                        .then(Modifier.padding(horizontal = 0.dp)),
                     border = androidx.compose.foundation.BorderStroke(
                         width = 0.5.dp,
                         color = Color.White.copy(alpha = 0.15f),
@@ -167,16 +223,45 @@ fun PlanetScreen(
             }
         }
 
-        // ── Stage progress bar ────────────────────────────────────────────────
-        if (currentStage < 6) {
-            LinearProgressIndicator(
-                progress = { stageProgress },
+        // ── Stage-up banner ───────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible = showStageUp,
+            enter   = fadeIn() + slideInVertically { it },
+            exit    = fadeOut() + slideOutVertically { -it },
+        ) {
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 8.dp),
-                color = Color.White,
+                color  = Color.White.copy(alpha = 0.1f),
+                shape  = RoundedCornerShape(12.dp),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.3f)),
+            ) {
+                Row(
+                    modifier              = Modifier.padding(16.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text       = "Your world evolved — $stageLabel",
+                        color      = Color.White,
+                        fontSize   = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+
+        // ── Stage progress bar ────────────────────────────────────────────────
+        if (currentStage < 6) {
+            LinearProgressIndicator(
+                progress   = { stageProgress },
+                modifier   = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                color      = Color.White,
                 trackColor = Color.White.copy(alpha = 0.10f),
-                strokeCap = StrokeCap.Round,
+                strokeCap  = StrokeCap.Round,
             )
         }
 
@@ -188,19 +273,29 @@ fun PlanetScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             StatCard(
-                label = "THIS WEEK",
-                value = "${weeklyTotal(weeklySummary)}",
+                label    = "THIS WEEK",
+                value    = "${weeklyTotal(weeklySummary)}",
                 modifier = Modifier.weight(1f),
             )
             StatCard(
-                label = "BEST DAY",
-                value = "${bestDayCount(weeklySummary)}",
+                label    = "BEST DAY",
+                value    = "${bestDayCount(weeklySummary)}",
                 modifier = Modifier.weight(1f),
             )
             StatCard(
-                label = "STREAK",
-                value = "$streakDays days",
+                label    = "STREAK",
+                value    = "$streakDays days",
                 modifier = Modifier.weight(1f),
+            )
+        }
+
+        // ── Debug panel (DEBUG builds only, hidden by 5-tap gesture) ─────────
+        if (BuildConfig.DEBUG && debugMode) {
+            DebugPanel(
+                totalCompleted       = totalCompleted,
+                debugSessionOverride = debugSessionOverride,
+                onOverrideSelected   = { debugSessionOverride = it },
+                onClearOverride      = { debugSessionOverride = null },
             )
         }
 
@@ -212,15 +307,34 @@ fun PlanetScreen(
         ) {
             FloatingActionButton(
                 onClick = {
-                    sharePlanet(
-                        context = context,
-                        skin    = selectedSkin,
-                        stage   = currentStage,
-                        sessions = totalCompleted,
-                        streak  = streakDays,
-                    )
+                    coroutineScope.launch {
+                        val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+
+                        val file = File(context.cacheDir, "toki_world.png")
+                        file.outputStream().use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+                        }
+
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file,
+                        )
+
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "image/png"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "My world has $totalCompleted focus sessions " +
+                                    "with Toki ✨ — Zero ads, one tap timer",
+                            )
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share your world"))
+                    }
                 },
-                modifier = Modifier
+                modifier       = Modifier
                     .align(Alignment.CenterEnd)
                     .size(52.dp),
                 containerColor = Color.White,
@@ -240,18 +354,105 @@ fun PlanetScreen(
     // ── Skin selector sheet ───────────────────────────────────────────────────
     if (showSkinSheet) {
         SkinSelectorSheet(
-            currentSkin     = selectedSkin,
-            isPro           = isPro,
-            onSkinSelected  = { skin ->
+            currentSkin    = selectedSkin,
+            isPro          = isPro,
+            onSkinSelected = { skin ->
                 settingsViewModel.updatePlanetSkin(skin)
                 showSkinSheet = false
             },
-            onDismiss       = { showSkinSheet = false },
-            onUpgradeClick  = {
+            onDismiss      = { showSkinSheet = false },
+            onUpgradeClick = {
                 showSkinSheet = false
                 billingViewModel.openUpgradeSheet()
             },
         )
+    }
+}
+
+// ── Debug panel ───────────────────────────────────────────────────────────────
+
+private val debugStageThresholds = listOf(0, 5, 15, 30, 60, 100)
+private val debugRed = Color(0xFFFF3B30)
+
+@Composable
+private fun DebugPanel(
+    totalCompleted: Int,
+    debugSessionOverride: Int?,
+    onOverrideSelected: (Int) -> Unit,
+    onClearOverride: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        color  = Color(0xFF1A0000),
+        shape  = RoundedCornerShape(8.dp),
+        border = BorderStroke(0.5.dp, debugRed.copy(alpha = 0.6f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text          = "DEBUG MODE",
+                fontSize      = 10.sp,
+                fontWeight    = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color         = debugRed,
+            )
+            Text(
+                text     = "Override session count for stage testing",
+                fontSize = 11.sp,
+                color    = Color.White.copy(alpha = 0.5f),
+            )
+
+            // Stage jump buttons — S1 through S6
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                debugStageThresholds.forEachIndexed { index, threshold ->
+                    val stage = index + 1
+                    OutlinedButton(
+                        onClick          = { onOverrideSelected(threshold) },
+                        modifier         = Modifier.weight(1f),
+                        contentPadding   = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
+                        border           = BorderStroke(
+                            1.dp,
+                            if (debugSessionOverride == threshold)
+                                debugRed
+                            else
+                                debugRed.copy(alpha = 0.35f),
+                        ),
+                        colors           = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (debugSessionOverride == threshold)
+                                debugRed
+                            else
+                                Color.White.copy(alpha = 0.7f),
+                        ),
+                    ) {
+                        Text(text = "S$stage", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+
+            // Clear override
+            TextButton(
+                onClick  = onClearOverride,
+                modifier = Modifier.fillMaxWidth(),
+                colors   = ButtonDefaults.textButtonColors(
+                    contentColor = Color.White.copy(alpha = 0.5f),
+                ),
+            ) {
+                Text(text = "Clear override", fontSize = 12.sp)
+            }
+
+            Text(
+                text     = "Active: ${debugSessionOverride?.let { "$it (override)" } ?: "real ($totalCompleted)"}",
+                fontSize = 11.sp,
+                color    = Color.White.copy(alpha = 0.4f),
+            )
+        }
     }
 }
 
@@ -306,23 +507,3 @@ private fun weeklyTotal(summary: List<DailySummary>): Int =
 
 private fun bestDayCount(summary: List<DailySummary>): Int =
     summary.maxOfOrNull { it.sessionCount } ?: 0
-
-private fun sharePlanet(
-    context: android.content.Context,
-    skin: PlanetSkin,
-    stage: Int,
-    sessions: Int,
-    streak: Int,
-) {
-    val shareText = buildString {
-        append("My ${skin.displayName} is at stage $stage on Toki! ")
-        append("$sessions focus sessions completed")
-        if (streak > 0) append(" • $streak day streak")
-        append(" 🌍")
-    }
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, shareText)
-    }
-    context.startActivity(Intent.createChooser(intent, "Share your world"))
-}

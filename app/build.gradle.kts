@@ -45,6 +45,12 @@ android {
         compose      = true
         buildConfig  = true
     }
+
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs("src/main/assets")
+        }
+    }
 }
 
 dependencies {
