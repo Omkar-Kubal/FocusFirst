@@ -125,9 +125,13 @@ class MainActivity : ComponentActivity() {
                 else    -> systemDark
             }
 
+            var selectedTab by rememberSaveable { mutableStateOf(Tab.HOME) }
+
             FocusFirstTheme(darkTheme = darkTheme, amoledMode = amoledMode) {
                 FocusFirstAppContent(
                     showNotificationRationale = showNotificationRationale,
+                    selectedTab               = selectedTab,
+                    onTabSelected             = { selectedTab = it },
                 )
 
                 // Global Pro upgrade sheet — triggered from anywhere in the app
@@ -135,8 +139,12 @@ class MainActivity : ComponentActivity() {
                     .collectAsStateWithLifecycle()
                 if (showUpgradeSheet) {
                     ProUpgradeSheet(
-                        onDismiss        = { billingViewModel.dismissUpgradeSheet() },
-                        billingViewModel = billingViewModel,
+                        onDismiss          = { billingViewModel.dismissUpgradeSheet() },
+                        onNavigateToPlanet = {
+                            selectedTab = Tab.PLANET
+                            billingViewModel.dismissUpgradeSheet()
+                        },
+                        billingViewModel   = billingViewModel,
                     )
                 }
             }
@@ -179,8 +187,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun FocusFirstAppContent(
     showNotificationRationale: State<Boolean>,
+    selectedTab: Tab,
+    onTabSelected: (Tab) -> Unit,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(Tab.HOME) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val shouldShowRationale by showNotificationRationale
@@ -220,7 +229,7 @@ private fun FocusFirstAppContent(
         bottomBar = {
             FocusBottomNav(
                 selectedTab   = selectedTab,
-                onTabSelected = { selectedTab = it },
+                onTabSelected = onTabSelected,
             )
         },
     ) { scaffoldPadding ->
@@ -232,11 +241,11 @@ private fun FocusFirstAppContent(
         ) {
             when (selectedTab) {
                 Tab.HOME     -> HomeScreen(
-                    onNavigateToSettings = { selectedTab = Tab.SETTINGS },
+                    onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
                 Tab.PLANET   -> PlanetScreen()
                 Tab.STATS    -> StatsScreen(
-                    onNavigateToSettings = { selectedTab = Tab.SETTINGS },
+                    onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
                 Tab.SETTINGS -> SettingsScreen()
             }

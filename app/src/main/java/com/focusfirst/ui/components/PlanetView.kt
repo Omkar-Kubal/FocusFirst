@@ -1,5 +1,6 @@
 package com.focusfirst.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -48,8 +49,14 @@ fun PlanetView(
     var rotationAngle by remember(modelPath) { mutableFloatStateOf(0f) }
 
     val modelNode = remember(modelPath) {
+        val instance = try {
+            modelLoader.createModelInstance(modelPath)
+        } catch (e: Exception) {
+            Log.w("PlanetView", "Model not found: $modelPath, falling back to earth")
+            modelLoader.createModelInstance("models/earth_stage1.glb")
+        }
         ModelNode(
-            modelInstance = modelLoader.createModelInstance(modelPath),
+            modelInstance = instance,
             scaleToUnits  = 1.8f,
         ).apply {
             isEditable = false

@@ -227,11 +227,14 @@ fun SettingsScreen(
                         icon        = Icons.Outlined.Timer,
                         iconTint    = Color(0xFF8E8E93),
                         label       = "AMOLED black",
-                        proBadge    = true,
+                        proBadge    = !isPro,
                         trailing    = {
                             Switch(
-                                checked         = amoledMode,
-                                onCheckedChange = { settingsViewModel.updateAmoledMode(it) },
+                                checked         = amoledMode && isPro,
+                                onCheckedChange = { newValue ->
+                                    if (isPro) settingsViewModel.updateAmoledMode(newValue)
+                                    else billingViewModel.openUpgradeSheet()
+                                },
                                 colors          = switchColors(scheme),
                             )
                         },

@@ -66,6 +66,7 @@ private val proFeatures = listOf(
 @Composable
 fun ProUpgradeSheet(
     onDismiss: () -> Unit,
+    onNavigateToPlanet: () -> Unit = {},
     billingViewModel: BillingViewModel = hiltViewModel(),
 ) {
     val activity = LocalContext.current as? Activity
@@ -122,7 +123,9 @@ fun ProUpgradeSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (isPro) {
-                    PurchasedContent()
+                    PurchasedContent(
+                        onNavigateToPlanet = onNavigateToPlanet,
+                    )
                 } else {
                     UpgradeContent(
                         isLoading  = isLoading,
@@ -160,7 +163,9 @@ fun ProUpgradeSheet(
 // ─── Purchased state ────────────────────────────────────────────────────────────
 
 @Composable
-private fun PurchasedContent() {
+private fun PurchasedContent(
+    onNavigateToPlanet: () -> Unit,
+) {
     Spacer(Modifier.height(32.dp))
     Icon(
         imageVector        = Icons.Outlined.CheckCircle,
@@ -177,11 +182,29 @@ private fun PurchasedContent() {
     )
     Spacer(Modifier.height(8.dp))
     Text(
-        text     = "All features unlocked. Enjoy Toki.",
+        text     = "You're Pro! Go choose your world.",
         fontSize = 15.sp,
         color    = Color.White.copy(alpha = 0.65f),
     )
-    Spacer(Modifier.height(40.dp))
+    Spacer(Modifier.height(24.dp))
+    Button(
+        onClick  = onNavigateToPlanet,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        shape  = CircleShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.White,
+            contentColor   = Color.Black,
+        ),
+    ) {
+        Text(
+            text       = "Choose skin",
+            fontSize   = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+    Spacer(Modifier.height(24.dp))
 }
 
 // ─── Upgrade (pre-purchase) state ───────────────────────────────────────────────

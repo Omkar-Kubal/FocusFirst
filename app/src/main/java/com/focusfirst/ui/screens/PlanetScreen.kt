@@ -248,8 +248,8 @@ fun PlanetScreen(
             },
             onDismiss       = { showSkinSheet = false },
             onUpgradeClick  = {
-                billingViewModel.openUpgradeSheet()
                 showSkinSheet = false
+                billingViewModel.openUpgradeSheet()
             },
         )
     }
