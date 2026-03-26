@@ -42,11 +42,11 @@
         <!-- ── Timer Foreground Service ──────────────────────────────── -->
         <service
             android:name=".service.TimerForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Pomodoro focus timer — counts down user-initiated work sessions" />
+                android:value="Toki uses a foreground service to run a reliable countdown timer that must continue when the app is backgrounded. This is essential for the core timer functionality — without it the timer stops when users lock their screen." />
         </service>
 
         <!-- ── Boot Receiver ─────────────────────────────────────────── -->
@@ -82,7 +82,7 @@
                 tools:node="remove" />
         </provider>
 
-        <!-- ── FileProvider — planet screenshot sharing ───────────────── -->
+        <!-- ── FileProvider ──────────────────────────────────────────── -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

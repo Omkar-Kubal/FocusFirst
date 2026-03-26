@@ -180,7 +180,6 @@ class TimerForegroundService : Service() {
 
     private fun startTimerCoroutine() {
         timerJob?.cancel()
-        var ticksSinceLastNotificationUpdate = 0
 
         timerJob = serviceScope.launch {
             updateNotification()
@@ -189,12 +188,7 @@ class TimerForegroundService : Service() {
                 sendTickBroadcast(isRunning = true)
                 delay(1_000L)
                 remainingSeconds--
-                ticksSinceLastNotificationUpdate++
-
-                if (ticksSinceLastNotificationUpdate >= 30) {
-                    updateNotification()
-                    ticksSinceLastNotificationUpdate = 0
-                }
+                updateNotification()
             }
 
             if (isActive) {
