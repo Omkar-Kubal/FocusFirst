@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -42,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
@@ -55,7 +53,6 @@ import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.screens.HomeScreen
-import com.focusfirst.ui.screens.PlanetScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
@@ -69,7 +66,7 @@ import javax.inject.Inject
 // Navigation
 // ============================================================================
 
-private enum class Tab { HOME, PLANET, STATS, SETTINGS }
+private enum class Tab { HOME, STATS, SETTINGS }
 
 private data class TabItem(
     val tab:   Tab,
@@ -79,7 +76,6 @@ private data class TabItem(
 
 private val tabs = listOf(
     TabItem(Tab.HOME,     "TIMER",   Icons.Filled.Timer),
-    TabItem(Tab.PLANET,   "WORLD",   Icons.Outlined.Public),
     TabItem(Tab.STATS,    "STATS",   Icons.Outlined.BarChart),
     TabItem(Tab.SETTINGS, "PROFILE", Icons.Outlined.Person),
 )
@@ -112,10 +108,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val billingViewModel: BillingViewModel = hiltViewModel()
-            val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+            val themeMode  by settingsViewModel.themeMode.collectAsStateWithLifecycle()
             val amoledMode by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
-            val darkTheme = when (themeMode) {
+            val darkTheme  = when (themeMode) {
                 "Dark"  -> true
                 "Light" -> false
                 else    -> systemDark
@@ -130,16 +126,13 @@ class MainActivity : ComponentActivity() {
                     onTabSelected             = { selectedTab = it },
                 )
 
+                // Global Pro upgrade sheet — triggered from anywhere in the app
                 val showUpgradeSheet by billingViewModel.showUpgradeSheet
                     .collectAsStateWithLifecycle()
                 if (showUpgradeSheet) {
                     ProUpgradeSheet(
-                        onDismiss          = { billingViewModel.dismissUpgradeSheet() },
-                        onNavigateToPlanet = {
-                            selectedTab = Tab.PLANET
-                            billingViewModel.dismissUpgradeSheet()
-                        },
-                        billingViewModel   = billingViewModel,
+                        onDismiss        = { billingViewModel.dismissUpgradeSheet() },
+                        billingViewModel = billingViewModel,
                     )
                 }
             }
@@ -175,11 +168,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun FocusFirstAppContent(
     showNotificationRationale: State<Boolean>,
-    selectedTab: Tab,
-    onTabSelected: (Tab) -> Unit,
+    selectedTab:               Tab,
+    onTabSelected:             (Tab) -> Unit,
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val snackbarHostState  = remember { SnackbarHostState() }
+    val context            = LocalContext.current
     val shouldShowRationale by showNotificationRationale
 
     LaunchedEffect(shouldShowRationale) {
@@ -230,7 +223,6 @@ private fun FocusFirstAppContent(
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
-                Tab.PLANET   -> PlanetScreen()
                 Tab.STATS    -> StatsScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )

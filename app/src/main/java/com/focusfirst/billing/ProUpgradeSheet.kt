@@ -65,12 +65,11 @@ private val proFeatures = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProUpgradeSheet(
-    onDismiss: () -> Unit,
-    onNavigateToPlanet: () -> Unit = {},
+    onDismiss:        () -> Unit,
     billingViewModel: BillingViewModel = hiltViewModel(),
 ) {
-    val activity = LocalContext.current as? Activity
-    val isPro by billingViewModel.isPro.collectAsStateWithLifecycle()
+    val activity      = LocalContext.current as? Activity
+    val isPro         by billingViewModel.isPro.collectAsStateWithLifecycle()
     val purchaseError by billingViewModel.purchaseError.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,8 +100,8 @@ fun ProUpgradeSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = SheetBackground,
+        sheetState       = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor   = SheetBackground,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -123,23 +122,19 @@ fun ProUpgradeSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (isPro) {
-                    PurchasedContent(
-                        onNavigateToPlanet = onNavigateToPlanet,
-                    )
+                    PurchasedContent(onDismiss = onDismiss)
                 } else {
                     UpgradeContent(
-                        isLoading  = isLoading,
-                        onBuyClick = {
+                        isLoading      = isLoading,
+                        onBuyClick     = {
                             if (activity != null && !isLoading) {
                                 isLoading = true
                                 billingViewModel.launchPurchase(activity)
-                                // Reset spinner after a short timeout in case the
-                                // billing sheet appears without a quick response
                                 isLoading = false
                             }
                         },
-                        onRestoreClick  = { billingViewModel.restorePurchases() },
-                        onDismissClick  = onDismiss,
+                        onRestoreClick = { billingViewModel.restorePurchases() },
+                        onDismissClick = onDismiss,
                     )
                 }
             }
@@ -160,12 +155,10 @@ fun ProUpgradeSheet(
     }
 }
 
-// ─── Purchased state ────────────────────────────────────────────────────────────
+// ─── Purchased state ─────────────────────────────────────────────────────────
 
 @Composable
-private fun PurchasedContent(
-    onNavigateToPlanet: () -> Unit,
-) {
+private fun PurchasedContent(onDismiss: () -> Unit) {
     Spacer(Modifier.height(32.dp))
     Icon(
         imageVector        = Icons.Outlined.CheckCircle,
@@ -182,13 +175,13 @@ private fun PurchasedContent(
     )
     Spacer(Modifier.height(8.dp))
     Text(
-        text     = "You're Pro! Go choose your world.",
+        text     = "All Pro features are now unlocked.",
         fontSize = 15.sp,
         color    = Color.White.copy(alpha = 0.65f),
     )
     Spacer(Modifier.height(24.dp))
     Button(
-        onClick  = onNavigateToPlanet,
+        onClick  = onDismiss,
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp),
@@ -199,7 +192,7 @@ private fun PurchasedContent(
         ),
     ) {
         Text(
-            text       = "Choose skin",
+            text       = "Start focusing",
             fontSize   = 15.sp,
             fontWeight = FontWeight.SemiBold,
         )
@@ -207,7 +200,7 @@ private fun PurchasedContent(
     Spacer(Modifier.height(24.dp))
 }
 
-// ─── Upgrade (pre-purchase) state ───────────────────────────────────────────────
+// ─── Upgrade (pre-purchase) state ────────────────────────────────────────────
 
 @Composable
 private fun UpgradeContent(
@@ -218,7 +211,6 @@ private fun UpgradeContent(
 ) {
     Spacer(Modifier.height(8.dp))
 
-    // Title
     Text(
         text       = "Unlock Toki Pro",
         fontSize   = 24.sp,
@@ -234,7 +226,6 @@ private fun UpgradeContent(
 
     Spacer(Modifier.height(20.dp))
 
-    // Price badge
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -251,10 +242,9 @@ private fun UpgradeContent(
 
     Spacer(Modifier.height(28.dp))
 
-    // Feature list
     Column(
-        modifier              = Modifier.fillMaxWidth(),
-        verticalArrangement   = Arrangement.spacedBy(14.dp),
+        modifier            = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         proFeatures.forEach { feature ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -276,7 +266,6 @@ private fun UpgradeContent(
 
     Spacer(Modifier.height(32.dp))
 
-    // Primary CTA
     Button(
         onClick  = onBuyClick,
         modifier = Modifier
@@ -305,7 +294,6 @@ private fun UpgradeContent(
 
     Spacer(Modifier.height(4.dp))
 
-    // Restore
     TextButton(
         onClick  = onRestoreClick,
         modifier = Modifier.fillMaxWidth(),
@@ -317,7 +305,6 @@ private fun UpgradeContent(
         )
     }
 
-    // Dismiss
     TextButton(
         onClick  = onDismissClick,
         modifier = Modifier.fillMaxWidth(),
