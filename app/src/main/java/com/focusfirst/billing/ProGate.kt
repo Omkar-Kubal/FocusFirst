@@ -32,12 +32,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  * overlays a lock screen prompting an upgrade (when not Pro).
  *
  * [lockedContent] is an optional replacement for the default lock overlay.
- * Leave it empty (default) to use the built-in lock overlay.
+ * Pass null (default) to use the built-in lock overlay.
  */
 @Composable
 fun ProGate(
     billingViewModel: BillingViewModel = hiltViewModel(),
-    lockedContent: @Composable () -> Unit = {},
+    lockedContent: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val isPro by billingViewModel.isPro.collectAsStateWithLifecycle()
@@ -56,9 +56,7 @@ fun ProGate(
                     .background(Color.Black.copy(alpha = 0.72f)),
                 contentAlignment = Alignment.Center,
             ) {
-                // Custom locked content takes priority over the default overlay buttons
-                val hasCustomLocked = lockedContent != ({} as @Composable () -> Unit)
-                if (hasCustomLocked) {
+                if (lockedContent != null) {
                     lockedContent()
                 } else {
                     LockOverlayContent(

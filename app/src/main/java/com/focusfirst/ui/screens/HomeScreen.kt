@@ -37,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,7 @@ import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.IntervalPreset
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
+import com.focusfirst.ui.components.BreakSuggestionSheet
 import com.focusfirst.ui.components.SoundSelectorSheet
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.LocalFocusDarkTheme
@@ -92,6 +94,25 @@ fun HomeScreen(
 
     var showStopDialog  by rememberSaveable { mutableStateOf(false) }
     var showSoundSheet  by remember { mutableStateOf(false) }
+    var showBreakSheet  by remember { mutableStateOf(false) }
+    var isLongBreak     by remember { mutableStateOf(false) }
+
+    // Show break suggestion sheet when the phase transitions to a break
+    LaunchedEffect(timerState.phase) {
+        if (timerState.isRunning) {
+            when (timerState.phase) {
+                TimerPhase.SHORT_BREAK -> {
+                    isLongBreak    = false
+                    showBreakSheet = true
+                }
+                TimerPhase.LONG_BREAK  -> {
+                    isLongBreak    = true
+                    showBreakSheet = true
+                }
+                else -> {}
+            }
+        }
+    }
 
     if (showStopDialog) {
         AlertDialog(
@@ -134,6 +155,14 @@ fun HomeScreen(
                 showSoundSheet = false
                 billingViewModel.openUpgradeSheet()
             },
+        )
+    }
+
+    if (showBreakSheet) {
+        BreakSuggestionSheet(
+            isLongBreak          = isLongBreak,
+            breakDurationSeconds = timerState.totalSeconds,
+            onDismiss            = { showBreakSheet = false },
         )
     }
 

@@ -159,21 +159,21 @@ class TimerViewModel @Inject constructor(
     val ambientSound: StateFlow<AmbientSound> = settingsRepository.ambientSound
         .stateIn(
             scope        = viewModelScope,
-            started      = SharingStarted.WhileSubscribed(5_000L),
+            started      = SharingStarted.Eagerly,
             initialValue = AmbientSound.NONE,
         )
 
     val ambientVolume: StateFlow<Float> = settingsRepository.ambientVolume
         .stateIn(
             scope        = viewModelScope,
-            started      = SharingStarted.WhileSubscribed(5_000L),
+            started      = SharingStarted.Eagerly,
             initialValue = 0.5f,
         )
 
     val dndEnabled: StateFlow<Boolean> = settingsRepository.dndEnabled
         .stateIn(
             scope        = viewModelScope,
-            started      = SharingStarted.WhileSubscribed(5_000L),
+            started      = SharingStarted.Eagerly,
             initialValue = false,
         )
 

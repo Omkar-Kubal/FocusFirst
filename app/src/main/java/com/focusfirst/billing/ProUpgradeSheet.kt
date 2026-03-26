@@ -75,9 +75,10 @@ fun ProUpgradeSheet(
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
 
-    // Auto-dismiss 2 s after purchase succeeds
+    // Reset spinner and auto-dismiss 2 s after purchase succeeds
     LaunchedEffect(isPro) {
         if (isPro) {
+            isLoading = false
             delay(2_000)
             onDismiss()
         }
@@ -130,7 +131,6 @@ fun ProUpgradeSheet(
                             if (activity != null && !isLoading) {
                                 isLoading = true
                                 billingViewModel.launchPurchase(activity)
-                                isLoading = false
                             }
                         },
                         onRestoreClick = { billingViewModel.restorePurchases() },
