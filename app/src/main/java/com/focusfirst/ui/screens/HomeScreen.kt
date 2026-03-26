@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.MusicNote
@@ -36,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -207,8 +208,9 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .clickable { showSoundSheet = true }
+                    .semantics { contentDescription = "Current sound: ${ambientSound.displayName}" }
                     .background(
-                        color = Color.White.copy(alpha = 0.08f),
+                        color = scheme.onSurface.copy(alpha = 0.08f),
                         shape = RoundedCornerShape(20.dp),
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -219,29 +221,32 @@ fun HomeScreen(
                 Text(
                     text     = ambientSound.displayName,
                     fontSize = 12.sp,
-                    color    = Color.White.copy(alpha = 0.7f),
+                    color    = scheme.onSurface.copy(alpha = 0.7f),
                 )
                 Spacer(Modifier.width(6.dp))
                 Icon(
                     imageVector        = Icons.Outlined.VolumeUp,
                     contentDescription = null,
-                    tint               = Color.White.copy(alpha = 0.5f),
+                    tint               = scheme.onSurface.copy(alpha = 0.5f),
                     modifier           = Modifier.size(14.dp),
                 )
             }
         } else {
-            TextButton(onClick = { showSoundSheet = true }) {
+            TextButton(
+                onClick  = { showSoundSheet = true },
+                modifier = Modifier.semantics { contentDescription = "Select ambient sound" },
+            ) {
                 Icon(
                     imageVector        = Icons.Outlined.MusicNote,
                     contentDescription = null,
-                    tint               = Color.White.copy(alpha = 0.3f),
+                    tint               = scheme.onSurface.copy(alpha = 0.3f),
                     modifier           = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text     = "Add sound",
                     fontSize = 12.sp,
-                    color    = Color.White.copy(alpha = 0.3f),
+                    color    = scheme.onSurface.copy(alpha = 0.3f),
                 )
             }
         }
@@ -261,7 +266,9 @@ fun HomeScreen(
         }
 
         Surface(
-            modifier        = Modifier.size(80.dp),
+            modifier        = Modifier
+                .size(80.dp)
+                .semantics { contentDescription = fabLabel },
             shape           = CircleShape,
             color           = scheme.primary,
             contentColor    = scheme.onPrimary,
@@ -319,28 +326,19 @@ private fun HomeTopBar(onSettingsClick: () -> Unit) {
     val barBg  = if (dark) Color.White.copy(alpha = 0.08f) else scheme.surfaceVariant.copy(alpha = 0.5f)
 
     Row(
-        modifier              = Modifier
+        modifier          = Modifier
             .fillMaxWidth()
             .background(barBg)
             .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment     = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text       = "Toki",
             fontSize   = 22.sp,
             fontWeight = FontWeight.Bold,
-            color      = Color.White,
+            color      = scheme.onSurface,
             modifier   = Modifier.padding(start = 4.dp),
         )
-
-        IconButton(onClick = { /* reserved */ }) {
-            Icon(
-                imageVector        = Icons.Filled.MoreHoriz,
-                contentDescription = "More",
-                tint               = scheme.onSurface.copy(alpha = 0.7f),
-            )
-        }
     }
 }
 
@@ -359,7 +357,7 @@ private fun PresetPillRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(IntervalPreset.entries) { preset ->
+        items(IntervalPreset.entries, key = { it.name }) { preset ->
             val isSelected = preset == activePreset
 
             val (bg, fg) = when {

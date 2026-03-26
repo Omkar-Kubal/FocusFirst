@@ -1,0 +1,27 @@
+TOKI — DATA SAFETY INFORMATION
+For Play Console Data Safety Form
+
+DATA COLLECTED: None
+- No personal information collected
+- No name, email, phone, or location
+- No device identifiers
+- No usage analytics or crash reporting
+
+DATA STORED:
+- Session history stored locally on device (Room DB)
+- App preferences stored locally (DataStore)
+- Nothing transmitted to any server
+
+DATA SHARED: None
+- No data shared with third parties
+- No advertising networks
+- No analytics SDKs
+
+THIRD PARTY SERVICES:
+- Google Play Billing: Handles ₹149 Pro purchase
+  (Google's own servers, not ours)
+- No other third party services
+
+SECURITY:
+- All data local-only
+- Standard Android app sandbox security

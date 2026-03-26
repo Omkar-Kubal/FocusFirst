@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -52,11 +52,14 @@ import androidx.lifecycle.lifecycleScope
 import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
+import com.focusfirst.ui.components.FirstLaunchDialog
 import com.focusfirst.ui.screens.HomeScreen
+import com.focusfirst.ui.screens.LicensesScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
 import com.focusfirst.viewmodel.SettingsViewModel
+import com.focusfirst.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -75,9 +78,9 @@ private data class TabItem(
 )
 
 private val tabs = listOf(
-    TabItem(Tab.HOME,     "TIMER",   Icons.Filled.Timer),
-    TabItem(Tab.STATS,    "STATS",   Icons.Outlined.BarChart),
-    TabItem(Tab.SETTINGS, "PROFILE", Icons.Outlined.Person),
+    TabItem(Tab.HOME,     "TIMER",    Icons.Outlined.Timer),
+    TabItem(Tab.STATS,    "STATS",    Icons.Outlined.BarChart),
+    TabItem(Tab.SETTINGS, "SETTINGS", Icons.Outlined.Person),
 )
 
 // ============================================================================
@@ -119,6 +122,9 @@ class MainActivity : ComponentActivity() {
 
             var selectedTab by rememberSaveable { mutableStateOf(Tab.HOME) }
 
+            val eulaAccepted by settingsViewModel.eulaAccepted
+                .collectAsStateWithLifecycle(false)
+
             FocusFirstTheme(darkTheme = darkTheme, amoledMode = amoledMode) {
                 FocusFirstAppContent(
                     showNotificationRationale = showNotificationRationale,
@@ -133,6 +139,22 @@ class MainActivity : ComponentActivity() {
                     ProUpgradeSheet(
                         onDismiss        = { billingViewModel.dismissUpgradeSheet() },
                         billingViewModel = billingViewModel,
+                    )
+                }
+
+                // EULA — shown once on first launch, non-dismissible
+                if (!eulaAccepted) {
+                    FirstLaunchDialog(
+                        onAccept = {
+                            settingsViewModel.acceptEula()
+                        },
+                        onLearnMore = {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse(getString(R.string.privacy_policy_url)),
+                            )
+                            startActivity(intent)
+                        },
                     )
                 }
             }
@@ -174,6 +196,7 @@ private fun FocusFirstAppContent(
     val snackbarHostState  = remember { SnackbarHostState() }
     val context            = LocalContext.current
     val shouldShowRationale by showNotificationRationale
+    var showLicenses by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(shouldShowRationale) {
         if (shouldShowRationale) {
@@ -226,7 +249,13 @@ private fun FocusFirstAppContent(
                 Tab.STATS    -> StatsScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
-                Tab.SETTINGS -> SettingsScreen()
+                Tab.SETTINGS -> if (showLicenses) {
+                    LicensesScreen(onBack = { showLicenses = false })
+                } else {
+                    SettingsScreen(
+                        onNavigateToLicenses = { showLicenses = true },
+                    )
+                }
             }
         }
     }

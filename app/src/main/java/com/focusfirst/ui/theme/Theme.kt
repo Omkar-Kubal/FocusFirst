@@ -135,7 +135,12 @@ fun FocusFirstTheme(
 // ============================================================================
 
 /**
- * Progress-ring colour for [TimerPhase]: accent matches primary (black / white).
+ * Progress-ring colour for [TimerPhase].
+ * FOCUS → Tomato Red, SHORT_BREAK → Green, LONG_BREAK → Blue.
  */
 @Composable
-fun TimerPhase.ringColor(): Color = MaterialTheme.colorScheme.primary
+fun TimerPhase.ringColor(): Color = when (this) {
+    TimerPhase.FOCUS       -> Color(0xFFE84B1A)
+    TimerPhase.SHORT_BREAK -> Color(0xFF1A9E5F)
+    TimerPhase.LONG_BREAK  -> Color(0xFF2B7BE0)
+}

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FreeBreakfast
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -89,7 +90,7 @@ fun StatsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         // Header
         item {
@@ -114,6 +115,36 @@ fun StatsScreen(
                 weeklyTotal    = weeklyTotal,
                 streakDays     = streakDays,
             )
+        }
+
+        // 1b · Empty state
+        if (totalCompleted == 0) {
+            item {
+                Box(
+                    modifier         = Modifier
+                        .fillMaxWidth()
+                        .padding(40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🍅", fontSize = 40.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text       = "No sessions yet",
+                            fontSize   = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color      = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text      = "Start your first focus session\nto see your stats here",
+                            fontSize  = 13.sp,
+                            color     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
         }
 
         // 2 · Focus heatmap
