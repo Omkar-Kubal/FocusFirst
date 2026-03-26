@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -37,9 +38,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,6 +55,7 @@ import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.screens.HomeScreen
+import com.focusfirst.ui.screens.PlanetScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
@@ -67,7 +69,7 @@ import javax.inject.Inject
 // Navigation
 // ============================================================================
 
-private enum class Tab { HOME, STATS, SETTINGS }
+private enum class Tab { HOME, PLANET, STATS, SETTINGS }
 
 private data class TabItem(
     val tab:   Tab,
@@ -77,6 +79,7 @@ private data class TabItem(
 
 private val tabs = listOf(
     TabItem(Tab.HOME,     "TIMER",   Icons.Filled.Timer),
+    TabItem(Tab.PLANET,   "WORLD",   Icons.Outlined.Public),
     TabItem(Tab.STATS,    "STATS",   Icons.Outlined.BarChart),
     TabItem(Tab.SETTINGS, "PROFILE", Icons.Outlined.Person),
 )
@@ -90,10 +93,6 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
 
-    /**
-     * Mutable state read by the Compose layer to trigger a snackbar when the
-     * POST_NOTIFICATIONS permission is denied.
-     */
     private val showNotificationRationale = mutableStateOf(false)
 
     private val requestNotificationPermission =
@@ -131,14 +130,13 @@ class MainActivity : ComponentActivity() {
                     onTabSelected             = { selectedTab = it },
                 )
 
-                // Global Pro upgrade sheet — triggered from anywhere in the app
                 val showUpgradeSheet by billingViewModel.showUpgradeSheet
                     .collectAsStateWithLifecycle()
                 if (showUpgradeSheet) {
                     ProUpgradeSheet(
                         onDismiss          = { billingViewModel.dismissUpgradeSheet() },
                         onNavigateToPlanet = {
-                            selectedTab = Tab.STATS
+                            selectedTab = Tab.PLANET
                             billingViewModel.dismissUpgradeSheet()
                         },
                         billingViewModel   = billingViewModel,
@@ -148,13 +146,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Requests POST_NOTIFICATIONS on Android 13+ exactly once.
-     *
-     * The "already asked" flag is persisted in [SettingsRepository] so the
-     * system dialog never appears on subsequent launches.  If the user denies
-     * the permission, a Snackbar is shown via [showNotificationRationale].
-     */
     private fun requestPostNotificationsPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
 
@@ -191,13 +182,12 @@ private fun FocusFirstAppContent(
     val context = LocalContext.current
     val shouldShowRationale by showNotificationRationale
 
-    // Show snackbar once when the permission result comes back as denied.
     LaunchedEffect(shouldShowRationale) {
         if (shouldShowRationale) {
             val result = snackbarHostState.showSnackbar(
-                message    = "Notifications needed for timer alerts",
+                message     = "Notifications needed for timer alerts",
                 actionLabel = "Enable",
-                duration   = SnackbarDuration.Long,
+                duration    = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) {
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -216,10 +206,10 @@ private fun FocusFirstAppContent(
         snackbarHost   = {
             SnackbarHost(snackbarHostState) { data ->
                 Snackbar(
-                    snackbarData     = data,
-                    containerColor   = scheme.surfaceContainerHigh,
-                    contentColor     = scheme.onSurface,
-                    actionColor      = scheme.primary,
+                    snackbarData   = data,
+                    containerColor = scheme.surfaceContainerHigh,
+                    contentColor   = scheme.onSurface,
+                    actionColor    = scheme.primary,
                 )
             }
         },
@@ -240,9 +230,8 @@ private fun FocusFirstAppContent(
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
-                Tab.STATS    -> StatsScreen(
-                    onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
-                )
+                Tab.PLANET   -> PlanetScreen()
+                Tab.STATS    -> StatsScreen()
                 Tab.SETTINGS -> SettingsScreen()
             }
         }
@@ -281,11 +270,11 @@ private fun FocusBottomNav(
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor       = scheme.onSurface,
-                    unselectedIconColor     = scheme.onSurfaceVariant,
-                    selectedTextColor       = scheme.onSurface,
-                    unselectedTextColor     = scheme.onSurfaceVariant,
-                    indicatorColor          = scheme.primary.copy(alpha = 0.12f),
+                    selectedIconColor   = scheme.onSurface,
+                    unselectedIconColor = scheme.onSurfaceVariant,
+                    selectedTextColor   = scheme.onSurface,
+                    unselectedTextColor = scheme.onSurfaceVariant,
+                    indicatorColor      = scheme.primary.copy(alpha = 0.12f),
                 ),
             )
         }

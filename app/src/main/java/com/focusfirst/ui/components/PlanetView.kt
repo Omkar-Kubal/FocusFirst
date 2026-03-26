@@ -1,7 +1,6 @@
 package com.focusfirst.ui.components
 
 import android.annotation.SuppressLint
-import android.graphics.Color
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -26,21 +25,20 @@ fun PlanetView(
             modifier = modifier,
             factory = { context ->
                 WebView(context).apply {
-                    setBackgroundColor(Color.TRANSPARENT)
-                    isClickable = false
-                    isFocusable = false
+                    // Critical rendering flags
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    background = null
 
                     settings.apply {
                         javaScriptEnabled = true
                         allowFileAccess = true
-                        allowContentAccess = true
+                        domStorageEnabled = true
+                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         @Suppress("DEPRECATION")
                         allowUniversalAccessFromFileURLs = true
                         @Suppress("DEPRECATION")
                         allowFileAccessFromFileURLs = true
-                        domStorageEnabled = true
-                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        cacheMode = WebSettings.LOAD_NO_CACHE
                         mediaPlaybackRequiresUserGesture = false
                     }
 
@@ -50,71 +48,104 @@ fun PlanetView(
                             request: WebResourceRequest,
                         ): WebResourceResponse? {
                             val url = request.url.toString()
+
+                            // Serve model-viewer from assets
+                            if (url == "https://localhost/model-viewer.min.js") {
+                                return try {
+                                    WebResourceResponse(
+                                        "application/javascript",
+                                        "UTF-8", 200, "OK",
+                                        mapOf(
+                                            "Access-Control-Allow-Origin" to "*",
+                                            "Cache-Control" to "no-cache",
+                                        ),
+                                        context.assets.open("model-viewer.min.js"),
+                                    )
+                                } catch (e: Exception) { null }
+                            }
+
+                            // Serve GLB from assets
                             if (url.startsWith("https://localhost/models/")) {
                                 return try {
-                                    val assetPath = url.substringAfter("https://localhost/")
-                                    val stream = context.assets.open(assetPath)
+                                    val fileName = url.substringAfter("https://localhost/")
                                     WebResourceResponse(
                                         "model/gltf-binary",
-                                        null,
-                                        200,
-                                        "OK",
+                                        null, 200, "OK",
                                         mapOf(
                                             "Access-Control-Allow-Origin" to "*",
                                             "Access-Control-Allow-Methods" to "GET",
                                             "Cache-Control" to "no-cache",
                                         ),
-                                        stream,
+                                        context.assets.open(fileName),
                                     )
                                 } catch (e: Exception) {
-                                    android.util.Log.e("PlanetView", "Failed to serve: $url", e)
+                                    android.util.Log.e("PlanetView", "Failed: $url", e)
                                     null
                                 }
                             }
                             return null
                         }
+
+                        override fun onPageFinished(view: WebView, url: String) {
+                            super.onPageFinished(view, url)
+                            android.util.Log.d("PlanetView", "Page loaded: $url")
+                            view.evaluateJavascript(
+                                """
+                                (function() {
+                                    var mv = document.querySelector('model-viewer');
+                                    return mv ? 'found:' + mv.src : 'not-found';
+                                })()
+                                """.trimIndent(),
+                            ) { result ->
+                                android.util.Log.d("PlanetView", "model-viewer: $result")
+                            }
+                        }
                     }
 
-                    // modelPath is e.g. "models/earth_stage1.glb"
-                    val glbUrl = "https://localhost/$modelPath"
                     val html = """
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                        <meta name="viewport" content="width=device-width">
-                        <script type="module"
-                          src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js">
-                        </script>
-                        <style>
-                          * { margin:0; padding:0; }
-                          body {
-                            background: transparent !important;
-                            width:100vw; height:100vh; overflow:hidden;
-                          }
-                          model-viewer {
-                            width:100%; height:100%;
-                            background-color: transparent !important;
-                            --progress-bar-color: transparent;
-                          }
-                        </style>
-                        </head>
-                        <body>
-                        <model-viewer
-                          src="$glbUrl"
-                          auto-rotate
-                          auto-rotate-delay="0"
-                          rotation-per-second="15deg"
-                          camera-controls="false"
-                          disable-zoom
-                          disable-pan
-                          interaction-prompt="none"
-                          shadow-intensity="0"
-                          exposure="1.2"
-                          background-color="transparent"
-                          style="background:transparent;">
-                        </model-viewer>
-                        </body>
-                        </html>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport"
+  content="width=device-width,initial-scale=1">
+<script type="module"
+  src="https://localhost/model-viewer.min.js">
+</script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%;
+  background:transparent !important;
+  overflow:hidden;
+}
+model-viewer {
+  width:100%; height:100%;
+  background-color:transparent !important;
+  --poster-color:transparent;
+  --progress-bar-color:transparent;
+  --progress-mask:transparent;
+}
+</style>
+</head>
+<body>
+<model-viewer
+  src="https://localhost/$modelPath"
+  auto-rotate
+  auto-rotate-delay="0"
+  rotation-per-second="20deg"
+  camera-orbit="0deg 75deg 200%"
+  min-camera-orbit="auto auto 150%"
+  max-camera-orbit="auto auto 250%"
+  field-of-view="30deg"
+  disable-zoom
+  disable-pan
+  interaction-prompt="none"
+  shadow-intensity="0.5"
+  exposure="1.0"
+  tone-mapping="commerce">
+</model-viewer>
+</body>
+</html>
                     """.trimIndent()
 
                     loadDataWithBaseURL(
