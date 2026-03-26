@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -219,19 +218,12 @@ private fun HomeTopBar(onSettingsClick: () -> Unit) {
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        IconButton(onClick = onSettingsClick) {
-            Icon(
-                imageVector        = Icons.Outlined.Settings,
-                contentDescription = "Settings",
-                tint               = scheme.onSurface.copy(alpha = 0.7f),
-            )
-        }
-
         Text(
             text       = "Toki",
-            fontSize   = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            color      = scheme.onSurface,
+            fontSize   = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color      = Color.White,
+            modifier   = Modifier.padding(start = 4.dp),
         )
 
         IconButton(onClick = { /* reserved */ }) {
