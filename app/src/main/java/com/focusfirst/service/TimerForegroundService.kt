@@ -15,6 +15,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.focusfirst.MainActivity
 import com.focusfirst.R
@@ -67,9 +68,9 @@ class TimerForegroundService : Service() {
     }
 
     companion object {
-        const val FOCUS_FIRST_PREFS = "focusfirst_prefs"
+        const val FOCUS_FIRST_PREFS    = "focusfirst_prefs"
         const val PREF_VIBRATE_ENABLED = "vibrate_enabled"
-        const val PREF_SOUND_TYPE = "sound_type"
+        const val PREF_SOUND_TYPE      = "sound_type"
 
         const val ACTION_START  = "com.focusfirst.ACTION_START"
         const val ACTION_PAUSE  = "com.focusfirst.ACTION_PAUSE"
@@ -80,10 +81,8 @@ class TimerForegroundService : Service() {
         const val BROADCAST_TICK     = "com.focusfirst.TICK"
         const val BROADCAST_FINISHED = "com.focusfirst.FINISHED"
 
-        const val EXTRA_DURATION_SECONDS = "extra_duration_seconds"
-
-        const val EXTRA_PHASE = "extra_phase"
-
+        const val EXTRA_DURATION_SECONDS  = "extra_duration_seconds"
+        const val EXTRA_PHASE             = "extra_phase"
         const val EXTRA_REMAINING_SECONDS = "extra_remaining_seconds"
         const val EXTRA_IS_RUNNING        = "extra_is_running"
 
@@ -93,9 +92,9 @@ class TimerForegroundService : Service() {
         private const val TAG = "TimerForegroundService"
 
         fun buildStartIntent(
-            context: Context,
+            context:         Context,
             durationSeconds: Int,
-            phase: TimerPhase,
+            phase:           TimerPhase,
         ): Intent = Intent(context, TimerForegroundService::class.java).apply {
             action = ACTION_START
             putExtra(EXTRA_DURATION_SECONDS, durationSeconds)
@@ -132,7 +131,7 @@ class TimerForegroundService : Service() {
     private fun handleStart(intent: Intent) {
         val durationSeconds = intent.getIntExtra(EXTRA_DURATION_SECONDS, 25 * 60)
         val phaseName       = intent.getStringExtra(EXTRA_PHASE) ?: TimerPhase.FOCUS.name
-        currentPhase    = TimerPhase.valueOf(phaseName)
+        currentPhase     = TimerPhase.valueOf(phaseName)
         remainingSeconds = durationSeconds
         isRunning        = true
 
@@ -145,8 +144,8 @@ class TimerForegroundService : Service() {
     private fun handlePause() {
         Log.d(TAG, "handlePause remaining=${remainingSeconds}s")
         timerJob?.cancel()
-        timerJob   = null
-        isRunning  = false
+        timerJob  = null
+        isRunning = false
         updateNotification()
         sendTickBroadcast(isRunning = false)
     }
@@ -161,8 +160,8 @@ class TimerForegroundService : Service() {
     private fun handleStop() {
         Log.d(TAG, "handleStop")
         timerJob?.cancel()
-        timerJob      = null
-        isRunning     = false
+        timerJob         = null
+        isRunning        = false
         remainingSeconds = 0
         sendTickBroadcast(isRunning = false)
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -227,15 +226,15 @@ class TimerForegroundService : Service() {
 
     private fun startForegroundCompat() {
         val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
+        ServiceCompat.startForeground(
+            this,
+            NOTIFICATION_ID,
+            notification,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            else
+                0,
+        )
     }
 
     private fun updateNotification() {

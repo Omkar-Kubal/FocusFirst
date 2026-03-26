@@ -73,10 +73,10 @@ fun HomeScreen(
     settingsViewModel:    SettingsViewModel = hiltViewModel(),
     onNavigateToSettings: () -> Unit        = {},
 ) {
-    val timerState  by viewModel.timerState.collectAsStateWithLifecycle()
-    val todayCount  by viewModel.todayCount.collectAsStateWithLifecycle()
-    val streakDays  by viewModel.streakDays.collectAsStateWithLifecycle()
-    val dailyGoal   by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
+    val timerState by viewModel.timerState.collectAsStateWithLifecycle()
+    val todayCount by viewModel.todayCount.collectAsStateWithLifecycle()
+    val streakDays by viewModel.streakDays.collectAsStateWithLifecycle()
+    val dailyGoal  by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
@@ -119,15 +119,16 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
 
-        HomeTopBar(
-            onSettingsClick = onNavigateToSettings,
-        )
+        HomeTopBar(onSettingsClick = onNavigateToSettings)
 
         PresetPillRow(
             activePreset = timerState.preset,
             isRunning    = timerState.isRunning,
             onSelect     = { viewModel.selectPreset(it) },
         )
+
+        // ── Gap between pills and ring ────────────────────────────────────────
+        Spacer(Modifier.height(16.dp))
 
         Box(
             modifier         = Modifier
@@ -140,7 +141,7 @@ fun HomeScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        val fabIcon = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
+        val fabIcon  = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
         val fabLabel = when {
             timerState.isRunning -> "Pause"
             timerState.isPaused  -> "Resume"
@@ -255,26 +256,16 @@ private fun PresetPillRow(
             val isSelected = preset == activePreset
 
             val (bg, fg) = when {
-                isSelected && !dark ->
-                    scheme.primary to scheme.onPrimary
-
-                isSelected && dark ->
-                    Color.White to Color.Black
-
-                !isSelected && !dark ->
-                    FocusColors.LightPillIdle to scheme.onSurface
-
-                else ->
-                    Color.White.copy(alpha = 0.1f) to Color.White.copy(alpha = 0.6f)
+                isSelected && !dark  -> scheme.primary to scheme.onPrimary
+                isSelected && dark   -> Color.White to Color.Black
+                !isSelected && !dark -> FocusColors.LightPillIdle to scheme.onSurface
+                else                 -> Color.White.copy(alpha = 0.1f) to Color.White.copy(alpha = 0.6f)
             }
 
             Box(
                 modifier = Modifier
                     .alpha(if (isRunning && !isSelected) 0.4f else 1f)
-                    .background(
-                        color = bg,
-                        shape = RoundedCornerShape(50.dp),
-                    )
+                    .background(color = bg, shape = RoundedCornerShape(50.dp))
                     .clickable(enabled = !isRunning) { onSelect(preset) }
                     .padding(horizontal = 18.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
@@ -379,7 +370,7 @@ private fun BentoStatsRow(
     val dark    = LocalFocusDarkTheme.current
     val cardBg  = if (dark) FocusColors.SurfaceContainerLow else scheme.surface
     val border  = if (dark) Color.White.copy(alpha = 0.08f) else scheme.outlineVariant.copy(alpha = 0.4f)
-    val goalDen = dailyGoal.coerceAtLeast(1)
+    val goalDen  = dailyGoal.coerceAtLeast(1)
     val progress = (todayCount / goalDen.toFloat()).coerceIn(0f, 1f)
 
     Row(

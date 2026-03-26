@@ -4,7 +4,7 @@
 
     <!-- ── Timer / Wake ──────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -42,12 +42,8 @@
         <!-- ── Timer Foreground Service ──────────────────────────────── -->
         <service
             android:name=".service.TimerForegroundService"
-            android:foregroundServiceType="specialUse"
-            android:exported="false">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Toki uses a foreground service to run a reliable countdown timer that must continue when the app is backgrounded. This is essential for the core timer functionality — without it the timer stops when users lock their screen." />
-        </service>
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
 
         <!-- ── Boot Receiver ─────────────────────────────────────────── -->
         <receiver
