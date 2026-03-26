@@ -110,6 +110,12 @@ class SettingsViewModel @Inject constructor(
         initialValue = 0.5f,
     )
 
+    val dndEnabled: StateFlow<Boolean> = settingsRepository.dndEnabled.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false,
+    )
+
     fun updateFocusMinutes(value: Int) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, value)
@@ -200,6 +206,12 @@ class SettingsViewModel @Inject constructor(
     fun updateAmbientVolume(volume: Float) {
         viewModelScope.launch {
             settingsRepository.updateAmbientVolume(volume)
+        }
+    }
+
+    fun updateDndEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateDndEnabled(enabled)
         }
     }
 

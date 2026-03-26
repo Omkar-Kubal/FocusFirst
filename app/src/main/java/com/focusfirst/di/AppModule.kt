@@ -9,6 +9,7 @@ import com.focusfirst.data.focusFirstSettingsDataStore
 import com.focusfirst.data.db.FocusDatabase
 import com.focusfirst.data.db.SessionDao
 import com.focusfirst.service.SoundManager
+import com.focusfirst.util.DndManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,17 +19,9 @@ import javax.inject.Singleton
 
 /**
  * Hilt module that wires the Room database, its DAOs, the DataStore
- * settings repository, and the SoundManager into the DI graph.
+ * settings repository, SoundManager, and DndManager into the DI graph.
  *
  * All bindings are [@Singleton]: one instance per process lifetime.
- *
- * Usage in a ViewModel or Service:
- *   @Inject lateinit var sessionDao: SessionDao
- *   @Inject lateinit var settingsRepository: SettingsRepository
- *   @Inject lateinit var soundManager: SoundManager
- *
- * Note: [com.focusfirst.billing.BillingManager] is provided automatically by
- * Hilt via its @Inject constructor — no explicit @Provides entry is required here.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -70,4 +63,10 @@ object AppModule {
     fun provideSoundManager(
         @ApplicationContext context: Context,
     ): SoundManager = SoundManager(context.applicationContext)
+
+    @Provides
+    @Singleton
+    fun provideDndManager(
+        @ApplicationContext context: Context,
+    ): DndManager = DndManager(context.applicationContext)
 }

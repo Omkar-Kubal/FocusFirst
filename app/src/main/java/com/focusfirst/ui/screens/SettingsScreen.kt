@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Help
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Speed
@@ -34,8 +35,11 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +56,10 @@ import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProBadge
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.LocalFocusDarkTheme
+import com.focusfirst.util.DndManager
+import com.focusfirst.util.DndManagerEntryPoint
 import com.focusfirst.viewmodel.SettingsViewModel
+import dagger.hilt.android.EntryPointAccessors
 import kotlin.math.roundToInt
 
 // ============================================================================
@@ -66,17 +73,28 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
 
-    val focusMinutes by settingsViewModel.focusMinutes.collectAsStateWithLifecycle()
-    val shortBreak by settingsViewModel.shortBreakMinutes.collectAsStateWithLifecycle()
-    val longBreak by settingsViewModel.longBreakMinutes.collectAsStateWithLifecycle()
-    val sessionsBefore by settingsViewModel.sessionsBeforeLongBreak.collectAsStateWithLifecycle()
-    val dailyGoal by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
-    val autoStart by settingsViewModel.autoStart.collectAsStateWithLifecycle()
-    val vibrateEnabled by settingsViewModel.vibrate.collectAsStateWithLifecycle()
-    val soundType by settingsViewModel.soundType.collectAsStateWithLifecycle()
-    val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
-    val amoledMode by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
-    val isPro by billingViewModel.isPro.collectAsStateWithLifecycle()
+    val dndManager: DndManager = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            DndManagerEntryPoint::class.java,
+        ).dndManager()
+    }
+
+    val focusMinutes    by settingsViewModel.focusMinutes.collectAsStateWithLifecycle()
+    val shortBreak      by settingsViewModel.shortBreakMinutes.collectAsStateWithLifecycle()
+    val longBreak       by settingsViewModel.longBreakMinutes.collectAsStateWithLifecycle()
+    val sessionsBefore  by settingsViewModel.sessionsBeforeLongBreak.collectAsStateWithLifecycle()
+    val dailyGoal       by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
+    val autoStart       by settingsViewModel.autoStart.collectAsStateWithLifecycle()
+    val vibrateEnabled  by settingsViewModel.vibrate.collectAsStateWithLifecycle()
+    val soundType       by settingsViewModel.soundType.collectAsStateWithLifecycle()
+    val themeMode       by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+    val amoledMode      by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
+    val dndEnabled      by settingsViewModel.dndEnabled.collectAsStateWithLifecycle()
+    val isPro           by billingViewModel.isPro.collectAsStateWithLifecycle()
+
+    // Checked once per composition — user must navigate away/back to refresh after granting
+    val dndPermissionGranted by remember { mutableStateOf(dndManager.isDndPermissionGranted()) }
 
     val scheme = MaterialTheme.colorScheme
     val dark   = LocalFocusDarkTheme.current
@@ -99,7 +117,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             ProFeaturesCard(
-                isPro   = isPro,
+                isPro     = isPro,
                 onUpgrade = { billingViewModel.openUpgradeSheet() },
             )
 
@@ -109,10 +127,10 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             SettingsSectionCard(dark = dark) {
                 TimerSettingsRow(
-                    icon        = Icons.Outlined.Speed,
-                    iconTint    = Color(0xFF007AFF),
-                    label       = "Auto-Start Next Session",
-                    trailing    = {
+                    icon     = Icons.Outlined.Speed,
+                    iconTint = Color(0xFF007AFF),
+                    label    = "Auto-Start Next Session",
+                    trailing = {
                         Switch(
                             checked         = autoStart,
                             onCheckedChange = { settingsViewModel.updateAutoStart(it) },
@@ -120,6 +138,55 @@ fun SettingsScreen(
                         )
                     },
                 )
+                Spacer(Modifier.height(16.dp))
+                // ── DND toggle ────────────────────────────────────────────
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier          = Modifier.weight(1f),
+                    ) {
+                        BadgeIcon(
+                            icon = Icons.Outlined.NotificationsOff,
+                            tint = Color(0xFFFF3B30),
+                        )
+                        Spacer(Modifier.size(12.dp))
+                        Column {
+                            Text(
+                                text     = "Auto-enable DND",
+                                fontSize = 15.sp,
+                                color    = scheme.onSurface,
+                            )
+                            Text(
+                                text     = if (dndPermissionGranted)
+                                    "Silence notifications during focus"
+                                else
+                                    "Tap to grant permission",
+                                fontSize = 12.sp,
+                                color    = scheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (dndPermissionGranted) {
+                        Switch(
+                            checked         = dndEnabled,
+                            onCheckedChange = { settingsViewModel.updateDndEnabled(it) },
+                            colors          = switchColors(scheme),
+                        )
+                    } else {
+                        TextButton(onClick = { dndManager.requestDndPermission() }) {
+                            Text(
+                                text     = "Grant",
+                                color    = Color(0xFF1A9E5F),
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                }
+                // ─────────────────────────────────────────────────────────
                 Spacer(Modifier.height(16.dp))
                 SliderSettingRow(
                     icon      = Icons.Outlined.Timer,
@@ -198,10 +265,10 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 TimerSettingsRow(
-                    icon        = Icons.Outlined.Vibration,
-                    iconTint    = Color(0xFFFF9500),
-                    label       = "Haptic Feedback",
-                    trailing    = {
+                    icon     = Icons.Outlined.Vibration,
+                    iconTint = Color(0xFFFF9500),
+                    label    = "Haptic Feedback",
+                    trailing = {
                         Switch(
                             checked         = vibrateEnabled,
                             onCheckedChange = { settingsViewModel.updateVibrate(it) },
@@ -224,11 +291,11 @@ fun SettingsScreen(
                 if (themeMode == "Dark" || (themeMode == "System" && dark)) {
                     Spacer(Modifier.height(16.dp))
                     TimerSettingsRow(
-                        icon        = Icons.Outlined.Timer,
-                        iconTint    = Color(0xFF8E8E93),
-                        label       = "AMOLED black",
-                        proBadge    = !isPro,
-                        trailing    = {
+                        icon     = Icons.Outlined.Timer,
+                        iconTint = Color(0xFF8E8E93),
+                        label    = "AMOLED black",
+                        proBadge = !isPro,
+                        trailing = {
                             Switch(
                                 checked         = amoledMode && isPro,
                                 onCheckedChange = { newValue ->
@@ -288,12 +355,12 @@ fun SettingsScreen(
             Spacer(Modifier.height(32.dp))
 
             Text(
-                text       = "TOKI V1.0.0",
-                fontSize   = 12.sp,
+                text          = "TOKI V1.0.0",
+                fontSize      = 12.sp,
                 letterSpacing = 1.sp,
-                color      = scheme.onSurfaceVariant,
-                textAlign  = TextAlign.Center,
-                modifier   = Modifier.fillMaxWidth(),
+                color         = scheme.onSurfaceVariant,
+                textAlign     = TextAlign.Center,
+                modifier      = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(16.dp))
@@ -533,15 +600,15 @@ private fun SliderSettingRow(
             )
         }
         Slider(
-            value            = value,
-            onValueChange    = onChange,
-            valueRange       = range,
-            steps            = steps,
-            modifier         = Modifier.fillMaxWidth(),
-            colors           = SliderDefaults.colors(
-                thumbColor           = scheme.primary,
-                activeTrackColor     = scheme.primary,
-                inactiveTrackColor   = scheme.onSurfaceVariant.copy(alpha = 0.25f),
+            value         = value,
+            onValueChange = onChange,
+            valueRange    = range,
+            steps         = steps,
+            modifier      = Modifier.fillMaxWidth(),
+            colors        = SliderDefaults.colors(
+                thumbColor         = scheme.primary,
+                activeTrackColor   = scheme.primary,
+                inactiveTrackColor = scheme.onSurfaceVariant.copy(alpha = 0.25f),
             ),
         )
     }
@@ -696,7 +763,7 @@ private fun ThemeCard(
     onClick:   () -> Unit,
     scheme:    androidx.compose.material3.ColorScheme,
 ) {
-    val stroke = if (selected) 2.dp else 1.dp
+    val stroke      = if (selected) 2.dp else 1.dp
     val strokeColor = if (selected) scheme.primary else scheme.outlineVariant.copy(alpha = 0.4f)
 
     Column(

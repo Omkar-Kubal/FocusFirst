@@ -13,6 +13,9 @@
     <!-- ── Notifications (runtime permission, Android 13+) ───────────── -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- ── Do Not Disturb (user must grant via system settings) ──────── -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
     <!-- ── Network (Play Billing only) ───────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET" />
 

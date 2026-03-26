@@ -48,6 +48,7 @@ class SettingsRepository(
         val KEY_PLANET_SKIN = stringPreferencesKey("planet_skin")
         val KEY_AMBIENT_SOUND = stringPreferencesKey("ambient_sound")
         val KEY_AMBIENT_VOLUME = floatPreferencesKey("ambient_volume")
+        val KEY_DND_ENABLED = booleanPreferencesKey("dnd_enabled")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[KEY_FOCUS_MINUTES] ?: 25 }
@@ -95,6 +96,8 @@ class SettingsRepository(
         prefs[KEY_AMBIENT_VOLUME] ?: 0.5f
     }
 
+    val dndEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DND_ENABLED] ?: false }
+
     suspend fun updatePlanetSkin(skin: PlanetSkin) =
         update(KEY_PLANET_SKIN, skin.name)
 
@@ -104,6 +107,10 @@ class SettingsRepository(
 
     suspend fun updateAmbientVolume(volume: Float) {
         dataStore.edit { it[KEY_AMBIENT_VOLUME] = volume }
+    }
+
+    suspend fun updateDndEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_DND_ENABLED] = enabled }
     }
 
     suspend fun <T> update(key: Preferences.Key<T>, value: T) {

@@ -23,6 +23,7 @@ import com.focusfirst.service.TimerAlarmWorker
 import com.focusfirst.service.TimerForegroundService
 import com.focusfirst.service.cancelAlarm
 import com.focusfirst.service.scheduleAlarm
+import com.focusfirst.util.DndManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,6 +44,7 @@ import javax.inject.Inject
 //   - SettingsRepository      (drives break lengths, long-break cadence, etc.)
 //   - Room / SessionDao        (persists completed + partial sessions)
 //   - SoundManager            (ambient sound playback lifecycle)
+//   - DndManager              (Do Not Disturb enable/restore lifecycle)
 //   - Compose UI               (exposes StateFlows)
 //
 // Initial FOCUS duration when the user taps Start follows the selected
@@ -56,6 +58,7 @@ class TimerViewModel @Inject constructor(
     private val sessionDao: SessionDao,
     private val settingsRepository: SettingsRepository,
     private val soundManager: SoundManager,
+    private val dndManager: DndManager,
 ) : ViewModel() {
 
     // ── LocalBroadcastManager ─────────────────────────────────────────────────
@@ -167,6 +170,13 @@ class TimerViewModel @Inject constructor(
             initialValue = 0.5f,
         )
 
+    val dndEnabled: StateFlow<Boolean> = settingsRepository.dndEnabled
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = false,
+        )
+
     // ========================================================================
     // Private session-tracking fields
     // ========================================================================
@@ -243,6 +253,10 @@ class TimerViewModel @Inject constructor(
             soundManager.play(sound, ambientVolume.value)
         }
 
+        if (dndEnabled.value && dndManager.isDndPermissionGranted()) {
+            dndManager.enableDnd()
+        }
+
         Log.d(TAG, "start preset=$preset duration=${durationSeconds}s")
     }
 
@@ -274,6 +288,7 @@ class TimerViewModel @Inject constructor(
         sessionStartMs = 0L
 
         soundManager.stop()
+        dndManager.disableDnd()
         cancelAlarm(application)
         sendServiceAction(TimerForegroundService.ACTION_STOP)
         _timerState.value = TimerState()
@@ -363,7 +378,8 @@ class TimerViewModel @Inject constructor(
      *   1. Persist the completed FOCUS session (breaks are not recorded).
      *   2. Advance the focus counter.
      *   3. Choose the next phase: SHORT_BREAK → every N sessions → LONG_BREAK.
-     *   4. Auto-start the next phase with duration from [SettingsRepository].
+     *   4. Manage sound and DND for the incoming phase.
+     *   5. Auto-start the next phase with duration from [SettingsRepository].
      *
      * LONG_BREAK completion resets [sessionCount] so the Pomodoro cycle repeats.
      */
@@ -395,14 +411,18 @@ class TimerViewModel @Inject constructor(
             }
         }
 
-        // Sound lifecycle: play during FOCUS, pause during breaks
+        // Sound + DND lifecycle: active during FOCUS, suspended during breaks
         if (nextPhase == TimerPhase.FOCUS) {
             val sound = ambientSound.value
             if (sound != AmbientSound.NONE) {
                 soundManager.play(sound, ambientVolume.value)
             }
+            if (dndEnabled.value && dndManager.isDndPermissionGranted()) {
+                dndManager.enableDnd()
+            }
         } else {
             soundManager.pause()
+            dndManager.disableDnd()
         }
 
         val nextDurationSeconds = when (nextPhase) {
@@ -491,7 +511,8 @@ class TimerViewModel @Inject constructor(
     override fun onCleared() {
         localBroadcastManager.unregisterReceiver(timerReceiver)
         soundManager.release()
-        Log.d(TAG, "onCleared: BroadcastReceiver unregistered, SoundManager released")
+        dndManager.disableDnd()
+        Log.d(TAG, "onCleared: receiver unregistered, sound + DND released")
         super.onCleared()
     }
 
