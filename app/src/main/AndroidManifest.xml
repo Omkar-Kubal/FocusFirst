@@ -4,7 +4,6 @@
 
     <!-- ── Timer / Wake ──────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Required on Android 14+ for specialUse foreground service type -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -41,11 +40,6 @@
         </activity>
 
         <!-- ── Timer Foreground Service ──────────────────────────────── -->
-        <!--
-            foregroundServiceType="specialUse" requires:
-              - FOREGROUND_SERVICE_SPECIAL_USE permission (Android 14+)
-              - PROPERTY_SPECIAL_USE_FGS_SUBTYPE property below
-        -->
         <service
             android:name=".service.TimerForegroundService"
             android:exported="false"
@@ -56,7 +50,6 @@
         </service>
 
         <!-- ── Boot Receiver ─────────────────────────────────────────── -->
-        <!-- Restores any active timer state after device reboot -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:exported="false">
@@ -66,12 +59,6 @@
         </receiver>
 
         <!-- ── App Widget Receiver ───────────────────────────────────── -->
-        <!--
-            Glance widget receiver must be exported=true so the launcher
-            can send APPWIDGET_UPDATE broadcasts.
-            meta-data points to res/xml/focus_first_widget_info.xml
-            (create this file before building the widget feature).
-        -->
         <receiver
             android:name=".widget.FocusFirstWidgetReceiver"
             android:exported="true">
@@ -84,12 +71,6 @@
         </receiver>
 
         <!-- ── WorkManager: disable default initializer ──────────────── -->
-        <!--
-            Hilt's HiltWorkerFactory must be set as the WorkManager factory.
-            The default auto-initializer must be removed so WorkManager waits
-            for FocusFirstApp.workManagerConfiguration (Configuration.Provider)
-            instead of initializing itself with the default factory.
-        -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

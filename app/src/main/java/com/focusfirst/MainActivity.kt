@@ -231,7 +231,9 @@ private fun FocusFirstAppContent(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
                 Tab.PLANET   -> PlanetScreen()
-                Tab.STATS    -> StatsScreen()
+                Tab.STATS    -> StatsScreen(
+                    onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
+                )
                 Tab.SETTINGS -> SettingsScreen()
             }
         }

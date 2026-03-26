@@ -67,13 +67,12 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun PlanetScreen(
-    timerViewModel: TimerViewModel = hiltViewModel(),
-    billingViewModel: BillingViewModel = hiltViewModel(),
+    timerViewModel:    TimerViewModel    = hiltViewModel(),
+    billingViewModel:  BillingViewModel  = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val totalCompleted by timerViewModel.totalCompleted.collectAsStateWithLifecycle()
     val streakDays     by timerViewModel.streakDays.collectAsStateWithLifecycle()
-    val todayCount     by timerViewModel.todayCount.collectAsStateWithLifecycle()
     val weeklySummary  by timerViewModel.weeklySummary.collectAsStateWithLifecycle()
     val isPro          by billingViewModel.isPro.collectAsStateWithLifecycle()
     val selectedSkin   by settingsViewModel.planetSkin.collectAsStateWithLifecycle()
@@ -83,7 +82,6 @@ fun PlanetScreen(
     var debugMode            by remember { mutableStateOf(false) }
     var debugSessionOverride by remember { mutableStateOf<Int?>(null) }
 
-    // All stage calculations use the override when active, real data otherwise.
     val effectiveSessions = debugSessionOverride ?: totalCompleted
     val currentStage  = getStageForSessions(effectiveSessions)
     val stageLabel    = getStageLabel(selectedSkin, currentStage)
@@ -143,13 +141,13 @@ fun PlanetScreen(
                 )
             }
             IconButton(
-                onClick = { showSkinSheet = true },
+                onClick  = { showSkinSheet = true },
                 modifier = Modifier.align(Alignment.CenterEnd),
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Palette,
+                    imageVector        = Icons.Outlined.Palette,
                     contentDescription = "Choose world skin",
-                    tint = Color.White,
+                    tint               = Color.White,
                 )
             }
         }
@@ -167,7 +165,7 @@ fun PlanetScreen(
                 size      = 280.dp,
             )
 
-            // Stage label pill
+            // Stage label pill + "X more to evolve"
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -175,27 +173,25 @@ fun PlanetScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .padding(bottom = 4.dp)
-                        .then(Modifier.padding(horizontal = 0.dp)),
+                    shape  = CircleShape,
+                    color  = Color.Black.copy(alpha = 0.6f),
                     border = androidx.compose.foundation.BorderStroke(
                         width = 0.5.dp,
                         color = Color.White.copy(alpha = 0.15f),
                     ),
+                    modifier = Modifier.padding(bottom = 4.dp),
                 ) {
                     Text(
-                        text = stageLabel,
+                        text     = stageLabel,
                         fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.7f),
+                        color    = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                     )
                 }
 
                 if (sessionsLeft != null) {
                     Text(
-                        text = "$sessionsLeft more to evolve",
+                        text  = "$sessionsLeft more to evolve",
                         fontSize = 10.sp,
                         color = Color.White.copy(alpha = 0.3f),
                     )
@@ -215,7 +211,10 @@ fun PlanetScreen(
                     .padding(horizontal = 24.dp, vertical = 8.dp),
                 color  = Color.White.copy(alpha = 0.1f),
                 shape  = RoundedCornerShape(12.dp),
-                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.3f)),
+                border = androidx.compose.foundation.BorderStroke(
+                    0.5.dp,
+                    Color.White.copy(alpha = 0.3f),
+                ),
             ) {
                 Row(
                     modifier              = Modifier.padding(16.dp),
@@ -252,26 +251,26 @@ fun PlanetScreen(
                 .padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            StatCard(
+            PlanetStatCard(
                 label    = "THIS WEEK",
                 value    = "${weeklyTotal(weeklySummary)}",
                 modifier = Modifier.weight(1f),
             )
-            StatCard(
+            PlanetStatCard(
                 label    = "BEST DAY",
                 value    = "${bestDayCount(weeklySummary)}",
                 modifier = Modifier.weight(1f),
             )
-            StatCard(
+            PlanetStatCard(
                 label    = "STREAK",
                 value    = "$streakDays days",
                 modifier = Modifier.weight(1f),
             )
         }
 
-        // ── Debug panel (DEBUG builds only, hidden by 5-tap gesture) ─────────
+        // ── Debug panel (DEBUG builds only, hidden behind 5-tap gesture) ──────
         if (BuildConfig.DEBUG && debugMode) {
-            DebugPanel(
+            PlanetDebugPanel(
                 totalCompleted       = totalCompleted,
                 debugSessionOverride = debugSessionOverride,
                 onOverrideSelected   = { debugSessionOverride = it },
@@ -334,17 +333,19 @@ fun PlanetScreen(
     }
 }
 
-// ── Debug panel ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Debug panel
+// ─────────────────────────────────────────────────────────────────────────────
 
 private val debugStageThresholds = listOf(0, 5, 15, 30, 60, 100)
 private val debugRed = Color(0xFFFF3B30)
 
 @Composable
-private fun DebugPanel(
-    totalCompleted: Int,
+private fun PlanetDebugPanel(
+    totalCompleted:       Int,
     debugSessionOverride: Int?,
-    onOverrideSelected: (Int) -> Unit,
-    onClearOverride: () -> Unit,
+    onOverrideSelected:   (Int) -> Unit,
+    onClearOverride:      () -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -352,10 +353,10 @@ private fun DebugPanel(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         color  = Color(0xFF1A0000),
         shape  = RoundedCornerShape(8.dp),
-        border = BorderStroke(0.5.dp, debugRed.copy(alpha = 0.6f)),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, debugRed.copy(alpha = 0.6f)),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier            = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
@@ -371,7 +372,6 @@ private fun DebugPanel(
                 color    = Color.White.copy(alpha = 0.5f),
             )
 
-            // Stage jump buttons — S1 through S6
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -382,7 +382,7 @@ private fun DebugPanel(
                         onClick        = { onOverrideSelected(threshold) },
                         modifier       = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
-                        border         = BorderStroke(
+                        border         = androidx.compose.foundation.BorderStroke(
                             1.dp,
                             if (debugSessionOverride == threshold) debugRed
                             else debugRed.copy(alpha = 0.35f),
@@ -416,12 +416,14 @@ private fun DebugPanel(
     }
 }
 
-// ── StatCard ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Stat card
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StatCard(
-    label: String,
-    value: String,
+private fun PlanetStatCard(
+    label:    String,
+    value:    String,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -451,7 +453,9 @@ private fun StatCard(
     }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 private fun computeStageProgress(sessions: Int): Float {
     val thresholds = listOf(0, 5, 15, 30, 60, 100, 200)

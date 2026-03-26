@@ -28,7 +28,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // TODO: add signingConfig for production signing
         }
     }
 
@@ -45,7 +44,6 @@ android {
         compose      = true
         buildConfig  = true
     }
-
 }
 
 dependencies {

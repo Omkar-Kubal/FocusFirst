@@ -5,12 +5,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -27,30 +25,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FreeBreakfast
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,16 +49,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.focusfirst.BuildConfig
-import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.data.db.SessionEntity
-import com.focusfirst.data.model.getNextStageAt
-import com.focusfirst.data.model.getStageForSessions
-import com.focusfirst.data.model.getStageLabel
-import com.focusfirst.data.model.modelPath
-import com.focusfirst.ui.components.PlanetView
-import com.focusfirst.ui.components.SkinSelectorSheet
-import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TimerViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -77,9 +57,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
-import kotlin.math.pow
-import kotlin.math.sqrt
-import kotlin.random.Random
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StatsScreen
@@ -87,32 +64,15 @@ import kotlin.random.Random
 
 @Composable
 fun StatsScreen(
-    timerViewModel:       TimerViewModel    = hiltViewModel(),
-    billingViewModel:     BillingViewModel  = hiltViewModel(),
-    settingsViewModel:    SettingsViewModel = hiltViewModel(),
-    onNavigateToSettings: () -> Unit        = {},
+    timerViewModel:       TimerViewModel = hiltViewModel(),
+    onNavigateToSettings: () -> Unit     = {},
 ) {
     val totalCompleted by timerViewModel.totalCompleted.collectAsStateWithLifecycle()
-    val todayCount     by timerViewModel.todayCount.collectAsStateWithLifecycle()
     val weeklySummary  by timerViewModel.weeklySummary.collectAsStateWithLifecycle()
     val recentSessions by timerViewModel.recentSessions.collectAsStateWithLifecycle()
     val streakDays     by timerViewModel.streakDays.collectAsStateWithLifecycle()
-    val isPro          by billingViewModel.isPro.collectAsStateWithLifecycle()
-    val selectedSkin   by settingsViewModel.planetSkin.collectAsStateWithLifecycle()
     val allSessions    by timerViewModel.allSessions.collectAsStateWithLifecycle()
 
-    // ── Debug state (DEBUG builds only) ──────────────────────────────────────
-    var debugMode            by remember { mutableStateOf(false) }
-    var debugSessionOverride by remember { mutableStateOf<Int?>(null) }
-
-    // ── Computed ─────────────────────────────────────────────────────────────
-    val effectiveSessions = debugSessionOverride ?: totalCompleted
-    val currentStage  = getStageForSessions(effectiveSessions)
-    val stageLabel    = getStageLabel(selectedSkin, currentStage)
-    val nextStageAt   = getNextStageAt(effectiveSessions)
-    val sessionsLeft  = nextStageAt?.minus(effectiveSessions)
-    val stageProgress = computeStageProgress(effectiveSessions)
-    val modelPath     = selectedSkin.modelPath(currentStage)
     val weeklyTotal   = weeklySummary.sumOf { it.sessionCount }
     val todayEpochDay = System.currentTimeMillis() / 86_400_000L
 
@@ -124,29 +84,30 @@ fun StatsScreen(
     val maxSessions = daysChart.maxOfOrNull { it.second }.let { if (it != null && it > 0) it else 1 }
     val maxMinutes  = daysChart.maxOfOrNull { it.third  }.let { if (it != null && it > 0) it else 1 }
 
-    var showSkinSheet by rememberSaveable { mutableStateOf(false) }
-    var showMinutes   by remember { mutableStateOf(false) }
+    var showMinutes by remember { mutableStateOf(false) }
 
-    // ── Layout ───────────────────────────────────────────────────────────────
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        // 1 · Planet hero — edge to edge
+        // Header
         item {
-            PlanetHeroSection(
-                modelPath        = modelPath,
-                stageLabel       = stageLabel,
-                sessionsLeft     = sessionsLeft,
-                stageProgress    = stageProgress,
-                currentStage     = currentStage,
-                onShowSkin       = { showSkinSheet = true },
-                onActivateDebug  = { debugMode = !debugMode },
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, top = 48.dp, bottom = 8.dp),
+            ) {
+                Text(
+                    text       = "Stats",
+                    fontSize   = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = Color.White,
+                )
+            }
         }
 
-        // 2 · Stat cards
+        // 1 · Stat cards
         item {
             StatCardsRow(
                 totalCompleted = totalCompleted,
@@ -155,12 +116,12 @@ fun StatsScreen(
             )
         }
 
-        // 3 · Focus heatmap
+        // 2 · Focus heatmap
         item {
             FocusHeatmapSection(allSessions = allSessions)
         }
 
-        // 4 · Bar chart
+        // 3 · Bar chart
         item {
             BarChartSection(
                 days          = daysChart,
@@ -172,187 +133,15 @@ fun StatsScreen(
             )
         }
 
-        // 5 · Recent intervals (asymmetric)
+        // 4 · Recent intervals
         item {
             RecentIntervalsSection(recentSessions = recentSessions)
         }
-
-        // Debug panel — hidden behind 5-tap on stage pill
-        if (BuildConfig.DEBUG && debugMode) {
-            item {
-                DebugPanel(
-                    totalCompleted       = totalCompleted,
-                    debugSessionOverride = debugSessionOverride,
-                    onOverrideSelected   = { debugSessionOverride = it },
-                    onClearOverride      = { debugSessionOverride = null },
-                )
-            }
-        }
-    }
-
-    // Skin selector sheet
-    if (showSkinSheet) {
-        SkinSelectorSheet(
-            currentSkin    = selectedSkin,
-            isPro          = isPro,
-            onSkinSelected = { skin ->
-                settingsViewModel.updatePlanetSkin(skin)
-                showSkinSheet = false
-            },
-            onDismiss      = { showSkinSheet = false },
-            onUpgradeClick = {
-                showSkinSheet = false
-                billingViewModel.openUpgradeSheet()
-            },
-        )
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Item 1 · Planet hero
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun PlanetHeroSection(
-    modelPath:       String,
-    stageLabel:      String,
-    sessionsLeft:    Int?,
-    stageProgress:   Float,
-    currentStage:    Int,
-    onShowSkin:      () -> Unit,
-    onActivateDebug: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(340.dp)
-            .pointerInput(Unit) {
-                var tapCount = 0
-                var lastTap  = 0L
-                detectTapGestures {
-                    val now = System.currentTimeMillis()
-                    if (now - lastTap < 500L) {
-                        tapCount++
-                        if (tapCount >= 5) {
-                            onActivateDebug()
-                            tapCount = 0
-                        }
-                    } else {
-                        tapCount = 1
-                    }
-                    lastTap = now
-                }
-            },
-    ) {
-        // Dark green ambient glow
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color  = Color(0xFF0A2A0A),
-                radius = size.width * 0.55f,
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                alpha  = 0.8f,
-            )
-        }
-
-        // Star field — seed 42 keeps positions stable across recompositions
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val rng = Random(42)
-            repeat(50) {
-                val x    = rng.nextFloat() * size.width
-                val y    = rng.nextFloat() * size.height
-                val dist = sqrt(
-                    (x - size.width / 2f).pow(2) + (y - size.height * 0.4f).pow(2),
-                )
-                if (dist > size.width * 0.35f) {
-                    drawCircle(
-                        color  = Color.White,
-                        radius = rng.nextFloat() * 1.5f + 0.5f,
-                        center = Offset(x, y),
-                        alpha  = rng.nextFloat() * 0.6f + 0.2f,
-                    )
-                }
-            }
-        }
-
-        // Planet
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 20.dp)
-                .height(260.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            PlanetView(
-                modelPath = modelPath,
-                modifier  = Modifier.size(240.dp),
-            )
-        }
-
-        // Palette icon — top right
-        IconButton(
-            onClick  = onShowSkin,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 48.dp, end = 16.dp),
-        ) {
-            Icon(
-                imageVector        = Icons.Outlined.Palette,
-                contentDescription = "Choose world skin",
-                tint               = Color.White.copy(alpha = 0.7f),
-            )
-        }
-
-        // Bottom overlay: stage pill → progress bar
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            // Stage pill
-            Surface(
-                color  = Color.Black.copy(alpha = 0.6f),
-                shape  = RoundedCornerShape(50.dp),
-                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
-            ) {
-                Text(
-                    text     = stageLabel,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    fontSize = 13.sp,
-                    color    = Color.White.copy(alpha = 0.9f),
-                )
-            }
-
-            if (sessionsLeft != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text          = "$sessionsLeft MORE SESSIONS TO EVOLVE",
-                    fontSize      = 10.sp,
-                    color         = Color.White.copy(alpha = 0.35f),
-                    letterSpacing = 0.08.em,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (currentStage < 6) {
-                LinearProgressIndicator(
-                    progress   = { stageProgress },
-                    modifier   = Modifier
-                        .width(160.dp)
-                        .height(2.dp)
-                        .clip(RoundedCornerShape(1.dp)),
-                    color      = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.15f),
-                    strokeCap  = StrokeCap.Round,
-                )
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Item 2 · Stat cards
+// Section 1 · Stat cards
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -415,7 +204,7 @@ private fun StatCard(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Item 3 · Focus heatmap (GitHub style, 26 weeks)
+// Section 2 · Focus heatmap (GitHub style, 26 weeks)
 // ─────────────────────────────────────────────────────────────────────────────
 
 private val MONTH_NAMES = listOf(
@@ -463,13 +252,13 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
     val startDay    = today - weeksToShow * 7L
     val cellSize    = 11.dp
     val cellGap     = 2.dp
-    val totalCell   = cellSize + cellGap    // 13 dp per week column
+    val totalCell   = cellSize + cellGap
     val dayLabelW   = 20.dp
 
     Column {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
 
-            // Day-of-week labels — M / W / F only, offset by month-label row height
+            // Day-of-week labels — M / W / F only
             Column(
                 modifier            = Modifier
                     .width(dayLabelW)
@@ -490,7 +279,6 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
 
             // Month labels + cell grid
             Column {
-                // Month label row — one slot per week, labels appear at month boundaries
                 Row {
                     var lastMonth = -1
                     for (week in 0 until weeksToShow) {
@@ -516,7 +304,6 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Cell grid
                 Row(horizontalArrangement = Arrangement.spacedBy(cellGap)) {
                     for (week in 0 until weeksToShow) {
                         Column(verticalArrangement = Arrangement.spacedBy(cellGap)) {
@@ -585,7 +372,7 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Item 4 · Bar chart with COUNT / MINUTES toggle
+// Section 3 · Bar chart with COUNT / MINUTES toggle
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -658,7 +445,6 @@ private fun BarChartSection(
                 if (count > 0) {
                     val barH = (count.toFloat() / maxVal.toFloat()) * size.height
                     val capH = cornerPx.coerceAtMost(barH / 2f)
-                    // Full roundRect for the top curves, then a plain rect covers the bottom corners
                     drawRoundRect(
                         color        = barColor,
                         topLeft      = Offset(x, size.height - barH),
@@ -722,7 +508,7 @@ private fun ChartToggleChip(label: String, selected: Boolean, onClick: () -> Uni
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Item 5 · Recent intervals (asymmetric)
+// Section 4 · Recent intervals (asymmetric)
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -908,95 +694,8 @@ private fun CompletionBadge(wasCompleted: Boolean, compact: Boolean = false) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Debug panel (DEBUG builds only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-private val debugStageThresholds = listOf(0, 5, 15, 30, 60, 100)
-private val debugRed = Color(0xFFFF3B30)
-
-@Composable
-private fun DebugPanel(
-    totalCompleted:       Int,
-    debugSessionOverride: Int?,
-    onOverrideSelected:   (Int) -> Unit,
-    onClearOverride:      () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        color  = Color(0xFF1A0000),
-        shape  = RoundedCornerShape(8.dp),
-        border = BorderStroke(0.5.dp, debugRed.copy(alpha = 0.6f)),
-    ) {
-        Column(
-            modifier            = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text          = "⚠ DEBUG MODE ACTIVE",
-                fontSize      = 11.sp,
-                fontWeight    = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                color         = debugRed,
-            )
-            Text(
-                text     = "Override session count for stage testing",
-                fontSize = 11.sp,
-                color    = Color.White.copy(alpha = 0.5f),
-            )
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                debugStageThresholds.forEachIndexed { index, threshold ->
-                    val stage = index + 1
-                    OutlinedButton(
-                        onClick        = { onOverrideSelected(threshold) },
-                        modifier       = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
-                        border         = BorderStroke(
-                            1.dp,
-                            if (debugSessionOverride == threshold) debugRed
-                            else debugRed.copy(alpha = 0.35f),
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (debugSessionOverride == threshold) debugRed
-                                           else Color.White.copy(alpha = 0.7f),
-                        ),
-                    ) {
-                        Text(text = "S$stage", fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-            TextButton(
-                onClick  = onClearOverride,
-                modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.5f)),
-            ) {
-                Text(text = "Clear override", fontSize = 12.sp)
-            }
-            Text(
-                text     = "Active: ${debugSessionOverride?.let { "$it (override)" } ?: "real ($totalCompleted)"}",
-                fontSize = 11.sp,
-                color    = Color.White.copy(alpha = 0.4f),
-            )
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-private fun computeStageProgress(sessions: Int): Float {
-    val thresholds = listOf(0, 5, 15, 30, 60, 100, 200)
-    val stage = getStageForSessions(sessions)
-    if (stage == 6) return 1f
-    val low  = thresholds[stage - 1]
-    val high = thresholds[stage]
-    return ((sessions - low).toFloat() / (high - low)).coerceIn(0f, 1f)
-}
 
 private fun formatTimeAgo(startedAtMs: Long): String {
     val zone   = ZoneId.systemDefault()
