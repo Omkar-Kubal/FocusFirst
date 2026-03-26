@@ -5,8 +5,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.PlanetSkin
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -44,6 +46,8 @@ class SettingsRepository(
         val KEY_DAILY_GOAL = intPreferencesKey("KEY_DAILY_GOAL")
         val KEY_AUTO_START = booleanPreferencesKey("KEY_AUTO_START")
         val KEY_PLANET_SKIN = stringPreferencesKey("planet_skin")
+        val KEY_AMBIENT_SOUND = stringPreferencesKey("ambient_sound")
+        val KEY_AMBIENT_VOLUME = floatPreferencesKey("ambient_volume")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[KEY_FOCUS_MINUTES] ?: 25 }
@@ -82,8 +86,25 @@ class SettingsRepository(
         runCatching { PlanetSkin.valueOf(name) }.getOrDefault(PlanetSkin.EARTH)
     }
 
+    val ambientSound: Flow<AmbientSound> = dataStore.data.map { prefs ->
+        val name = prefs[KEY_AMBIENT_SOUND] ?: AmbientSound.NONE.name
+        runCatching { AmbientSound.valueOf(name) }.getOrDefault(AmbientSound.NONE)
+    }
+
+    val ambientVolume: Flow<Float> = dataStore.data.map { prefs ->
+        prefs[KEY_AMBIENT_VOLUME] ?: 0.5f
+    }
+
     suspend fun updatePlanetSkin(skin: PlanetSkin) =
         update(KEY_PLANET_SKIN, skin.name)
+
+    suspend fun updateAmbientSound(sound: AmbientSound) {
+        dataStore.edit { it[KEY_AMBIENT_SOUND] = sound.name }
+    }
+
+    suspend fun updateAmbientVolume(volume: Float) {
+        dataStore.edit { it[KEY_AMBIENT_VOLUME] = volume }
+    }
 
     suspend fun <T> update(key: Preferences.Key<T>, value: T) {
         dataStore.edit { preferences ->

@@ -26,7 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,9 +56,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.focusfirst.billing.BillingViewModel
+import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.IntervalPreset
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
+import com.focusfirst.ui.components.SoundSelectorSheet
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.LocalFocusDarkTheme
 import com.focusfirst.ui.theme.ringColor
@@ -71,16 +77,21 @@ import com.focusfirst.viewmodel.TimerViewModel
 fun HomeScreen(
     viewModel:            TimerViewModel   = hiltViewModel(),
     settingsViewModel:    SettingsViewModel = hiltViewModel(),
+    billingViewModel:     BillingViewModel  = hiltViewModel(),
     onNavigateToSettings: () -> Unit        = {},
 ) {
-    val timerState by viewModel.timerState.collectAsStateWithLifecycle()
-    val todayCount by viewModel.todayCount.collectAsStateWithLifecycle()
-    val streakDays by viewModel.streakDays.collectAsStateWithLifecycle()
-    val dailyGoal  by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
+    val timerState    by viewModel.timerState.collectAsStateWithLifecycle()
+    val todayCount    by viewModel.todayCount.collectAsStateWithLifecycle()
+    val streakDays    by viewModel.streakDays.collectAsStateWithLifecycle()
+    val dailyGoal     by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
+    val ambientSound  by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
+    val ambientVolume by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
+    val isPro         by billingViewModel.isPro.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
-    var showStopDialog by rememberSaveable { mutableStateOf(false) }
+    var showStopDialog  by rememberSaveable { mutableStateOf(false) }
+    var showSoundSheet  by remember { mutableStateOf(false) }
 
     if (showStopDialog) {
         AlertDialog(
@@ -101,6 +112,27 @@ fun HomeScreen(
                 TextButton(onClick = { showStopDialog = false }) {
                     Text("Keep going")
                 }
+            },
+        )
+    }
+
+    if (showSoundSheet) {
+        SoundSelectorSheet(
+            currentSound    = ambientSound,
+            currentVolume   = ambientVolume,
+            isPro           = isPro,
+            onSoundSelected = { sound ->
+                settingsViewModel.updateAmbientSound(sound)
+                viewModel.updateSound(sound, ambientVolume)
+            },
+            onVolumeChanged = { volume ->
+                settingsViewModel.updateAmbientVolume(volume)
+                viewModel.updateVolume(volume)
+            },
+            onDismiss       = { showSoundSheet = false },
+            onUpgradeClick  = {
+                showSoundSheet = false
+                billingViewModel.openUpgradeSheet()
             },
         )
     }
@@ -139,7 +171,53 @@ fun HomeScreen(
             VoidTimerRing(timerState = timerState)
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // ── Ambient sound indicator ───────────────────────────────────────────
+        if (ambientSound != AmbientSound.NONE) {
+            Row(
+                modifier = Modifier
+                    .clickable { showSoundSheet = true }
+                    .background(
+                        color = Color.White.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(20.dp),
+                    )
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(ambientSound.emoji, fontSize = 14.sp)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text     = ambientSound.displayName,
+                    fontSize = 12.sp,
+                    color    = Color.White.copy(alpha = 0.7f),
+                )
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    imageVector        = Icons.Outlined.VolumeUp,
+                    contentDescription = null,
+                    tint               = Color.White.copy(alpha = 0.5f),
+                    modifier           = Modifier.size(14.dp),
+                )
+            }
+        } else {
+            TextButton(onClick = { showSoundSheet = true }) {
+                Icon(
+                    imageVector        = Icons.Outlined.MusicNote,
+                    contentDescription = null,
+                    tint               = Color.White.copy(alpha = 0.3f),
+                    modifier           = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text     = "Add sound",
+                    fontSize = 12.sp,
+                    color    = Color.White.copy(alpha = 0.3f),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         val fabIcon  = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
         val fabLabel = when {

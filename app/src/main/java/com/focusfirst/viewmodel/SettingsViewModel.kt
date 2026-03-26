@@ -3,6 +3,7 @@ package com.focusfirst.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focusfirst.data.SettingsRepository
+import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.PlanetSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -97,6 +98,18 @@ class SettingsViewModel @Inject constructor(
         initialValue = false,
     )
 
+    val ambientSound: StateFlow<AmbientSound> = settingsRepository.ambientSound.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = AmbientSound.NONE,
+    )
+
+    val ambientVolume: StateFlow<Float> = settingsRepository.ambientVolume.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0.5f,
+    )
+
     fun updateFocusMinutes(value: Int) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, value)
@@ -175,6 +188,18 @@ class SettingsViewModel @Inject constructor(
     fun updateAutoStart(value: Boolean) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_AUTO_START, value)
+        }
+    }
+
+    fun updateAmbientSound(sound: AmbientSound) {
+        viewModelScope.launch {
+            settingsRepository.updateAmbientSound(sound)
+        }
+    }
+
+    fun updateAmbientVolume(volume: Float) {
+        viewModelScope.launch {
+            settingsRepository.updateAmbientVolume(volume)
         }
     }
 

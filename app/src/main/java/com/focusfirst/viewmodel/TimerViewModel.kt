@@ -14,9 +14,11 @@ import com.focusfirst.data.SettingsRepository
 import com.focusfirst.data.db.DailySummary
 import com.focusfirst.data.db.SessionDao
 import com.focusfirst.data.db.SessionEntity
+import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.IntervalPreset
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
+import com.focusfirst.service.SoundManager
 import com.focusfirst.service.TimerAlarmWorker
 import com.focusfirst.service.TimerForegroundService
 import com.focusfirst.service.cancelAlarm
@@ -40,6 +42,7 @@ import javax.inject.Inject
 //   - TimerForegroundService  (issues commands, receives tick/finish broadcasts)
 //   - SettingsRepository      (drives break lengths, long-break cadence, etc.)
 //   - Room / SessionDao        (persists completed + partial sessions)
+//   - SoundManager            (ambient sound playback lifecycle)
 //   - Compose UI               (exposes StateFlows)
 //
 // Initial FOCUS duration when the user taps Start follows the selected
@@ -52,6 +55,7 @@ class TimerViewModel @Inject constructor(
     private val application: Application,
     private val sessionDao: SessionDao,
     private val settingsRepository: SettingsRepository,
+    private val soundManager: SoundManager,
 ) : ViewModel() {
 
     // ── LocalBroadcastManager ─────────────────────────────────────────────────
@@ -149,6 +153,20 @@ class TimerViewModel @Inject constructor(
             initialValue = 0,
         )
 
+    val ambientSound: StateFlow<AmbientSound> = settingsRepository.ambientSound
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = AmbientSound.NONE,
+        )
+
+    val ambientVolume: StateFlow<Float> = settingsRepository.ambientVolume
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = 0.5f,
+        )
+
     // ========================================================================
     // Private session-tracking fields
     // ========================================================================
@@ -219,16 +237,24 @@ class TimerViewModel @Inject constructor(
             application,
             TimerForegroundService.buildStartIntent(application, durationSeconds, TimerPhase.FOCUS),
         )
+
+        val sound = ambientSound.value
+        if (sound != AmbientSound.NONE) {
+            soundManager.play(sound, ambientVolume.value)
+        }
+
         Log.d(TAG, "start preset=$preset duration=${durationSeconds}s")
     }
 
     fun pause() {
         Log.d(TAG, "pause")
+        soundManager.pause()
         sendServiceAction(TimerForegroundService.ACTION_PAUSE)
     }
 
     fun resume() {
         Log.d(TAG, "resume")
+        soundManager.resume()
         sendServiceAction(TimerForegroundService.ACTION_RESUME)
     }
 
@@ -247,6 +273,7 @@ class TimerViewModel @Inject constructor(
         }
         sessionStartMs = 0L
 
+        soundManager.stop()
         cancelAlarm(application)
         sendServiceAction(TimerForegroundService.ACTION_STOP)
         _timerState.value = TimerState()
@@ -273,6 +300,35 @@ class TimerViewModel @Inject constructor(
             settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, preset.focusMinutes)
         }
         Log.d(TAG, "selectPreset $preset")
+    }
+
+    /**
+     * Updates the ambient sound immediately — both persists the preference and
+     * starts/stops playback if the timer is currently running in FOCUS phase.
+     */
+    fun updateSound(sound: AmbientSound, volume: Float) {
+        viewModelScope.launch {
+            settingsRepository.updateAmbientSound(sound)
+            val state = _timerState.value
+            if (state.isRunning && state.phase == TimerPhase.FOCUS) {
+                if (sound == AmbientSound.NONE) {
+                    soundManager.stop()
+                } else {
+                    soundManager.play(sound, volume)
+                }
+            }
+        }
+    }
+
+    /**
+     * Updates the playback volume immediately — both persists the preference
+     * and applies it to the current MediaPlayer if active.
+     */
+    fun updateVolume(volume: Float) {
+        viewModelScope.launch {
+            settingsRepository.updateAmbientVolume(volume)
+            soundManager.setVolume(volume)
+        }
     }
 
     // ========================================================================
@@ -337,6 +393,16 @@ class TimerViewModel @Inject constructor(
                 sessionCount = 0
                 TimerPhase.FOCUS
             }
+        }
+
+        // Sound lifecycle: play during FOCUS, pause during breaks
+        if (nextPhase == TimerPhase.FOCUS) {
+            val sound = ambientSound.value
+            if (sound != AmbientSound.NONE) {
+                soundManager.play(sound, ambientVolume.value)
+            }
+        } else {
+            soundManager.pause()
         }
 
         val nextDurationSeconds = when (nextPhase) {
@@ -424,13 +490,10 @@ class TimerViewModel @Inject constructor(
 
     override fun onCleared() {
         localBroadcastManager.unregisterReceiver(timerReceiver)
-        Log.d(TAG, "onCleared: BroadcastReceiver unregistered")
+        soundManager.release()
+        Log.d(TAG, "onCleared: BroadcastReceiver unregistered, SoundManager released")
         super.onCleared()
     }
-
-    // ========================================================================
-    // Companion
-    // ========================================================================
 
     // ========================================================================
     // Private — streak computation
