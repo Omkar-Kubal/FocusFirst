@@ -35,7 +35,7 @@ class FocusFirstApp : Application(), Configuration.Provider {
             if (manager.getNotificationChannel(CHANNEL_TIMER) == null) {
                 val timerChannel = NotificationChannel(
                     CHANNEL_TIMER,
-                    "Focus Timer",
+                    "Toki Timer",
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
                     description = "Shows the active focus or break timer"

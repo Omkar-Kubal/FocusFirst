@@ -116,6 +116,13 @@ class SettingsViewModel @Inject constructor(
         initialValue = false,
     )
 
+    // Default true so existing installs don't show the dialog on update
+    val eulaAccepted: StateFlow<Boolean> = settingsRepository.eulaAccepted.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = true,
+    )
+
     fun updateFocusMinutes(value: Int) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, value)
@@ -212,6 +219,12 @@ class SettingsViewModel @Inject constructor(
     fun updateDndEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateDndEnabled(enabled)
+        }
+    }
+
+    fun acceptEula() {
+        viewModelScope.launch {
+            settingsRepository.acceptEula()
         }
     }
 

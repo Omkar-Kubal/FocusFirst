@@ -48,7 +48,8 @@ class SettingsRepository(
         val KEY_PLANET_SKIN = stringPreferencesKey("planet_skin")
         val KEY_AMBIENT_SOUND = stringPreferencesKey("ambient_sound")
         val KEY_AMBIENT_VOLUME = floatPreferencesKey("ambient_volume")
-        val KEY_DND_ENABLED = booleanPreferencesKey("dnd_enabled")
+        val KEY_DND_ENABLED  = booleanPreferencesKey("dnd_enabled")
+        val KEY_EULA_ACCEPTED = booleanPreferencesKey("eula_accepted")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[KEY_FOCUS_MINUTES] ?: 25 }
@@ -98,6 +99,8 @@ class SettingsRepository(
 
     val dndEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DND_ENABLED] ?: false }
 
+    val eulaAccepted: Flow<Boolean> = dataStore.data.map { it[KEY_EULA_ACCEPTED] ?: false }
+
     suspend fun updatePlanetSkin(skin: PlanetSkin) =
         update(KEY_PLANET_SKIN, skin.name)
 
@@ -111,6 +114,10 @@ class SettingsRepository(
 
     suspend fun updateDndEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_DND_ENABLED] = enabled }
+    }
+
+    suspend fun acceptEula() {
+        dataStore.edit { it[KEY_EULA_ACCEPTED] = true }
     }
 
     suspend fun <T> update(key: Preferences.Key<T>, value: T) {

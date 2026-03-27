@@ -93,7 +93,7 @@ class TimerAlarmWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(context, FocusFirstApp.CHANNEL_ALERTS)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("⏰ Session complete!")
+            .setContentTitle("Toki — Session complete")
             .setContentText(contentText)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

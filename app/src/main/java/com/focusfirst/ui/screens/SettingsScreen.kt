@@ -1,6 +1,7 @@
 package com.focusfirst.ui.screens
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,13 +22,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.Help
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Vibration
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -40,20 +40,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.focusfirst.BuildConfig
+import com.focusfirst.R
 import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProBadge
+import com.focusfirst.data.model.AmbientSound
+import com.focusfirst.ui.components.SoundSelectorSheet
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.LocalFocusDarkTheme
 import com.focusfirst.util.DndManager
@@ -68,8 +74,9 @@ import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
-    settingsViewModel: SettingsViewModel = hiltViewModel(),
-    billingViewModel: BillingViewModel = hiltViewModel(),
+    settingsViewModel:    SettingsViewModel = hiltViewModel(),
+    billingViewModel:     BillingViewModel  = hiltViewModel(),
+    onNavigateToLicenses: () -> Unit        = {},
 ) {
     val context = LocalContext.current
 
@@ -87,11 +94,14 @@ fun SettingsScreen(
     val dailyGoal       by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
     val autoStart       by settingsViewModel.autoStart.collectAsStateWithLifecycle()
     val vibrateEnabled  by settingsViewModel.vibrate.collectAsStateWithLifecycle()
-    val soundType       by settingsViewModel.soundType.collectAsStateWithLifecycle()
     val themeMode       by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val amoledMode      by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
     val dndEnabled      by settingsViewModel.dndEnabled.collectAsStateWithLifecycle()
     val isPro           by billingViewModel.isPro.collectAsStateWithLifecycle()
+    val ambientSound    by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
+    val ambientVolume   by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
+
+    var showSoundSheet by remember { mutableStateOf(false) }
 
     // Checked once per composition — user must navigate away/back to refresh after granting
     val dndPermissionGranted by remember { mutableStateOf(dndManager.isDndPermissionGranted()) }
@@ -254,15 +264,38 @@ fun SettingsScreen(
             SectionLabel("SOUND & HAPTICS", color = scheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             SettingsSectionCard(dark = dark) {
-                PlaceholderChevronRow(
+                SettingsClickRow(
                     icon     = Icons.Outlined.GraphicEq,
                     iconTint = Color(0xFF5856D6),
-                    title    = "Background Noise",
-                    subtitle = soundType,
-                    proBadge = true,
+                    title    = "Ambient Sound",
+                    subtitle = ambientSound.displayName,
                     scheme   = scheme,
-                    onClick  = { billingViewModel.openUpgradeSheet() },
+                    onClick  = { showSoundSheet = true },
                 )
+                if (ambientSound != AmbientSound.NONE) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier          = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("🔈", fontSize = 14.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Slider(
+                            value         = ambientVolume,
+                            onValueChange = { settingsViewModel.updateAmbientVolume(it) },
+                            modifier      = Modifier.weight(1f),
+                            colors        = SliderDefaults.colors(
+                                thumbColor         = scheme.primary,
+                                activeTrackColor   = scheme.primary,
+                                inactiveTrackColor = scheme.onSurfaceVariant.copy(alpha = 0.25f),
+                            ),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("🔊", fontSize = 14.sp)
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 TimerSettingsRow(
                     icon     = Icons.Outlined.Vibration,
@@ -274,6 +307,21 @@ fun SettingsScreen(
                             onCheckedChange = { settingsViewModel.updateVibrate(it) },
                             colors          = switchColors(scheme),
                         )
+                    },
+                )
+            }
+
+            if (showSoundSheet) {
+                SoundSelectorSheet(
+                    currentSound    = ambientSound,
+                    currentVolume   = ambientVolume,
+                    isPro           = isPro,
+                    onSoundSelected = { settingsViewModel.updateAmbientSound(it) },
+                    onVolumeChanged = { settingsViewModel.updateAmbientVolume(it) },
+                    onDismiss       = { showSoundSheet = false },
+                    onUpgradeClick  = {
+                        showSoundSheet = false
+                        billingViewModel.openUpgradeSheet()
                     },
                 )
             }
@@ -313,54 +361,94 @@ fun SettingsScreen(
 
             SectionLabel("ABOUT", color = scheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                SupportReferralCard(
-                    modifier = Modifier.weight(1f),
-                    dark     = dark,
+            SettingsSectionCard(dark = dark) {
+                // 1. Version
+                Row(
+                    modifier              = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment     = Alignment.CenterVertically,
+                ) {
+                    Text("Version", fontSize = 15.sp, color = scheme.onSurface)
+                    Text(BuildConfig.VERSION_NAME, fontSize = 14.sp, color = scheme.onSurfaceVariant)
+                }
+                HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
+                // 2. Rate Toki
+                SettingsClickRow(
+                    title    = "Rate Toki ⭐",
+                    subtitle = "Enjoying the app? Leave a review",
                     scheme   = scheme,
-                    icon     = Icons.Outlined.Help,
-                    iconTint = Color(0xFF007AFF),
-                    title    = "Support",
-                    subtitle = "Help & contact",
                     onClick  = {
-                        val mailUri = android.net.Uri.parse("mailto:support@focusfirst.app")
-                        context.startActivity(Intent(Intent.ACTION_SENDTO, mailUri))
-                    },
-                )
-                SupportReferralCard(
-                    modifier = Modifier.weight(1f),
-                    dark     = dark,
-                    scheme   = scheme,
-                    icon     = Icons.Outlined.Share,
-                    iconTint = Color(0xFF34C759),
-                    title    = "Referral",
-                    subtitle = "Share the app",
-                    onClick  = {
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "Check out Toki — a clean Pomodoro timer with zero ads! " +
-                                    "https://play.google.com/store/apps/details?id=com.focusfirst",
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("market://details?id=${context.packageName}"),
+                        )
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse(
+                                        "https://play.google.com/store/apps/details?id=${context.packageName}",
+                                    ),
+                                ),
                             )
                         }
-                        context.startActivity(Intent.createChooser(send, "Share Toki"))
                     },
+                )
+                HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
+                // 3. Privacy Policy
+                SettingsClickRow(
+                    title    = "Privacy Policy",
+                    subtitle = "How we handle your data",
+                    scheme   = scheme,
+                    onClick  = {
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://tokifocus.blogspot.com/privacy-policy"),
+                            ),
+                        )
+                    },
+                )
+                HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
+                // 4. Terms of Service
+                SettingsClickRow(
+                    title    = "Terms of Service",
+                    subtitle = "Usage terms and conditions",
+                    scheme   = scheme,
+                    onClick  = {
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://tokifocus.blogspot.com/terms"),
+                            ),
+                        )
+                    },
+                )
+                HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
+                // 5. Open Source Licenses
+                SettingsClickRow(
+                    title    = "Open Source Licenses",
+                    subtitle = "Third-party libraries we use",
+                    scheme   = scheme,
+                    onClick  = onNavigateToLicenses,
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(12.dp))
 
+            // 6. Copyright
             Text(
-                text          = "TOKI V1.0.0",
-                fontSize      = 12.sp,
-                letterSpacing = 1.sp,
-                color         = scheme.onSurfaceVariant,
-                textAlign     = TextAlign.Center,
-                modifier      = Modifier.fillMaxWidth(),
+                text      = "© 2026 Toki. All rights reserved.",
+                fontSize  = 12.sp,
+                color     = scheme.onSurface.copy(alpha = 0.35f),
+                modifier  = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                textAlign = TextAlign.Center,
             )
 
             Spacer(Modifier.height(16.dp))
@@ -796,40 +884,39 @@ private fun ThemeCard(
 }
 
 @Composable
-private fun SupportReferralCard(
-    modifier: Modifier,
-    dark:     Boolean,
-    scheme:   androidx.compose.material3.ColorScheme,
-    icon:     ImageVector,
-    iconTint: Color,
+private fun SettingsClickRow(
     title:    String,
     subtitle: String,
+    scheme:   androidx.compose.material3.ColorScheme,
+    icon:     ImageVector? = null,
+    iconTint: Color        = Color.Unspecified,
     onClick:  () -> Unit,
 ) {
-    val bg     = if (dark) Color.White.copy(alpha = 0.07f) else scheme.surface
-    val border = if (dark) Color.White.copy(alpha = 0.1f) else scheme.outlineVariant.copy(alpha = 0.35f)
-
-    Column(
-        modifier = modifier
-            .clip(SectionShape)
-            .border(1.dp, border, SectionShape)
-            .background(bg, SectionShape)
+    Row(
+        modifier              = Modifier
+            .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(vertical = 10.dp),
+        verticalAlignment     = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        BadgeIcon(icon = icon, tint = iconTint)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text       = title,
-            fontSize   = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color      = scheme.onSurface,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text     = subtitle,
-            fontSize = 11.sp,
-            color    = scheme.onSurfaceVariant,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier          = Modifier.weight(1f),
+        ) {
+            if (icon != null) {
+                BadgeIcon(icon = icon, tint = iconTint)
+                Spacer(Modifier.size(12.dp))
+            }
+            Column {
+                Text(text = title,    fontSize = 15.sp, color = scheme.onSurface)
+                Text(text = subtitle, fontSize = 12.sp, color = scheme.onSurfaceVariant)
+            }
+        }
+        Icon(
+            imageVector        = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint               = scheme.onSurfaceVariant,
         )
     }
 }
