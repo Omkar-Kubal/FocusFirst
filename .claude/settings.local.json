@@ -14,7 +14,9 @@
       "Bash(./gradlew.bat installDebug)",
       "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
       "Read(//c/Program Files/Android/Android Studio/jre/bin/**)",
-      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew.bat installDebug)"
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew.bat installDebug)",
+      "Bash(find C:UsersuserStudioProjectsFocusFirstappsrcmainjavacomfocusfirst -name *.kt)",
+      "Bash(find C:UsersuserStudioProjectsFocusFirstappsrcmainres -name *.xml)"
     ]
   }
 }
