@@ -7,7 +7,9 @@ import androidx.room.Room
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.data.focusFirstSettingsDataStore
 import com.focusfirst.data.db.FocusDatabase
+import com.focusfirst.data.db.MIGRATION_1_2
 import com.focusfirst.data.db.SessionDao
+import com.focusfirst.data.db.TaskDao
 import com.focusfirst.service.SoundManager
 import com.focusfirst.util.DndManager
 import dagger.Module
@@ -35,12 +37,18 @@ object AppModule {
         context,
         FocusDatabase::class.java,
         "focus_db",
-    ).build()
+    ).addMigrations(MIGRATION_1_2)
+     .build()
 
     @Provides
     @Singleton
     fun provideSessionDao(database: FocusDatabase): SessionDao =
         database.sessionDao()
+
+    @Provides
+    @Singleton
+    fun provideTaskDao(database: FocusDatabase): TaskDao =
+        database.taskDao()
 
     @Provides
     @Singleton

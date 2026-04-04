@@ -4,7 +4,10 @@
     android:minHeight="110dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
+    android:maxResizeWidth="250dp"
+    android:maxResizeHeight="110dp"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen"
     android:updatePeriodMillis="0"
-    android:description="@string/app_name" />
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description" />

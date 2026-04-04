@@ -16,6 +16,7 @@ import com.focusfirst.data.db.SessionDao
 import com.focusfirst.data.db.SessionEntity
 import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.IntervalPreset
+import com.focusfirst.data.model.TimerMode
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
 import com.focusfirst.service.SoundManager
@@ -25,9 +26,12 @@ import com.focusfirst.service.cancelAlarm
 import com.focusfirst.service.scheduleAlarm
 import com.focusfirst.util.DndManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -88,6 +92,10 @@ class TimerViewModel @Inject constructor(
     private val _timerState = MutableStateFlow(TimerState())
     val timerState: StateFlow<TimerState> = _timerState.asStateFlow()
 
+    /** Emits Unit each time a FOCUS phase (Pomodoro or Flow) completes successfully. */
+    private val _focusSessionCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val focusSessionCompleted: SharedFlow<Unit> = _focusSessionCompleted.asSharedFlow()
+
     val todayCount: StateFlow<Int> = sessionDao
         .observeTodayCount(todayStartMs())
         .stateIn(
@@ -141,11 +149,6 @@ class TimerViewModel @Inject constructor(
 
     /**
      * Current consecutive-day focus streak.
-     *
-     * A streak is valid when either today or yesterday has at least one
-     * completed session — this preserves the count for users who haven't
-     * started today yet.  The streak resets to 0 if the most-recent
-     * completed day is older than yesterday.
      */
     val streakDays: StateFlow<Int> = sessionDao
         .observeCompletedDays()
@@ -220,10 +223,7 @@ class TimerViewModel @Inject constructor(
     // ========================================================================
 
     /**
-     * Starts a fresh FOCUS session.
-     *
-     * Duration follows the selected [IntervalPreset]'s focus length so the
-     * preset pills (15 / 25 / 35 / 45 minutes) match the running timer.
+     * Starts a fresh FOCUS session in Pomodoro (count-down) mode.
      */
     fun start(preset: IntervalPreset = _timerState.value.preset) {
         val durationSeconds = preset.focusMinutes * 60
@@ -233,8 +233,10 @@ class TimerViewModel @Inject constructor(
             current.copy(
                 phase            = TimerPhase.FOCUS,
                 preset           = preset,
+                timerMode        = TimerMode.POMODORO,
                 totalSeconds     = durationSeconds,
                 remainingSeconds = durationSeconds,
+                elapsedSeconds   = 0,
                 isRunning        = true,
                 isPaused         = false,
             )
@@ -248,16 +250,39 @@ class TimerViewModel @Inject constructor(
             TimerForegroundService.buildStartIntent(application, durationSeconds, TimerPhase.FOCUS),
         )
 
-        val sound = ambientSound.value
-        if (sound != AmbientSound.NONE) {
-            soundManager.play(sound, ambientVolume.value)
-        }
-
-        if (dndEnabled.value && dndManager.isDndPermissionGranted()) {
-            dndManager.enableDnd()
-        }
-
+        startSoundAndDnd()
         Log.d(TAG, "start preset=$preset duration=${durationSeconds}s")
+    }
+
+    /**
+     * Starts a Flow session — count-up timer with no automatic phase transitions.
+     * The session is saved when the user manually stops.
+     */
+    fun startFlow() {
+        sessionStartMs = System.currentTimeMillis()
+
+        _timerState.update { current ->
+            current.copy(
+                phase          = TimerPhase.FOCUS,
+                timerMode      = TimerMode.FLOW,
+                totalSeconds   = 0,
+                remainingSeconds = 0,
+                elapsedSeconds = 0,
+                isRunning      = true,
+                isPaused       = false,
+            )
+        }
+
+        // No WorkManager alarm for Flow — the user decides when to stop.
+        ContextCompat.startForegroundService(
+            application,
+            Intent(application, TimerForegroundService::class.java).apply {
+                action = TimerForegroundService.ACTION_START_FLOW
+            },
+        )
+
+        startSoundAndDnd()
+        Log.d(TAG, "startFlow")
     }
 
     fun pause() {
@@ -275,18 +300,39 @@ class TimerViewModel @Inject constructor(
     /**
      * Stops the timer unconditionally.
      *
-     * Saves a partial session to Room if the user focused for more than 30 s.
-     * Sessions shorter than 30 s are considered accidental starts and discarded.
+     * Pomodoro: saves a partial session if the user focused for > 30 s.
+     * Flow: saves a completed session with actual elapsed time if > 30 s.
      */
     fun stop() {
-        if (sessionStartMs > 0L) {
+        val state = _timerState.value
+
+        if (state.timerMode == TimerMode.FLOW) {
+            val elapsed = state.elapsedSeconds
+            if (elapsed > 30) {
+                viewModelScope.launch {
+                    runCatching {
+                        sessionDao.insert(
+                            SessionEntity(
+                                startedAt       = sessionStartMs,
+                                durationSeconds = elapsed,
+                                wasCompleted    = true,
+                                tag             = "Flow",
+                            )
+                        )
+                    }.onSuccess {
+                        _focusSessionCompleted.tryEmit(Unit)
+                        Log.d(TAG, "Flow session saved: ${elapsed}s")
+                    }
+                }
+            }
+        } else if (sessionStartMs > 0L) {
             val elapsedSeconds = ((System.currentTimeMillis() - sessionStartMs) / 1000L).toInt()
             if (elapsedSeconds > 30) {
-                saveSession(wasCompleted = false, phase = _timerState.value.phase)
+                saveSession(wasCompleted = false, phase = state.phase)
             }
         }
-        sessionStartMs = 0L
 
+        sessionStartMs = 0L
         soundManager.stop()
         dndManager.disableDnd()
         cancelAlarm(application)
@@ -297,7 +343,6 @@ class TimerViewModel @Inject constructor(
 
     /**
      * Switches the active preset when the timer is idle.
-     * Idle display reflects the preset length (15 / 25 / 35 / 45 minutes).
      */
     fun selectPreset(preset: IntervalPreset) {
         val state = _timerState.value
@@ -317,28 +362,17 @@ class TimerViewModel @Inject constructor(
         Log.d(TAG, "selectPreset $preset")
     }
 
-    /**
-     * Updates the ambient sound immediately — both persists the preference and
-     * starts/stops playback if the timer is currently running in FOCUS phase.
-     */
     fun updateSound(sound: AmbientSound, volume: Float) {
         viewModelScope.launch {
             settingsRepository.updateAmbientSound(sound)
             val state = _timerState.value
             if (state.isRunning && state.phase == TimerPhase.FOCUS) {
-                if (sound == AmbientSound.NONE) {
-                    soundManager.stop()
-                } else {
-                    soundManager.play(sound, volume)
-                }
+                if (sound == AmbientSound.NONE) soundManager.stop()
+                else soundManager.play(sound, volume)
             }
         }
     }
 
-    /**
-     * Updates the playback volume immediately — both persists the preference
-     * and applies it to the current MediaPlayer if active.
-     */
     fun updateVolume(volume: Float) {
         viewModelScope.launch {
             settingsRepository.updateAmbientVolume(volume)
@@ -351,19 +385,36 @@ class TimerViewModel @Inject constructor(
     // ========================================================================
 
     private fun handleTick(intent: Intent) {
-        val remaining = intent.getIntExtra(TimerForegroundService.EXTRA_REMAINING_SECONDS, 0)
-        val running   = intent.getBooleanExtra(TimerForegroundService.EXTRA_IS_RUNNING, false)
-        val phase     = intent.getStringExtra(TimerForegroundService.EXTRA_PHASE)
-            ?.let { runCatching { TimerPhase.valueOf(it) }.getOrNull() }
-            ?: _timerState.value.phase
+        val isFlowMode = intent.getBooleanExtra(TimerForegroundService.EXTRA_IS_FLOW_MODE, false)
 
-        _timerState.update { current ->
-            current.copy(
-                remainingSeconds = remaining,
-                isRunning        = running,
-                isPaused         = !running && remaining > 0,
-                phase            = phase,
-            )
+        if (isFlowMode) {
+            val elapsed = intent.getIntExtra(TimerForegroundService.EXTRA_ELAPSED_SECONDS, 0)
+            val running = intent.getBooleanExtra(TimerForegroundService.EXTRA_IS_RUNNING, false)
+            _timerState.update { current ->
+                current.copy(
+                    elapsedSeconds = elapsed,
+                    isRunning      = running,
+                    isPaused       = !running && elapsed > 0,
+                    timerMode      = TimerMode.FLOW,
+                    phase          = TimerPhase.FOCUS,
+                )
+            }
+        } else {
+            val remaining = intent.getIntExtra(TimerForegroundService.EXTRA_REMAINING_SECONDS, 0)
+            val running   = intent.getBooleanExtra(TimerForegroundService.EXTRA_IS_RUNNING, false)
+            val phase     = intent.getStringExtra(TimerForegroundService.EXTRA_PHASE)
+                ?.let { runCatching { TimerPhase.valueOf(it) }.getOrNull() }
+                ?: _timerState.value.phase
+
+            _timerState.update { current ->
+                current.copy(
+                    remainingSeconds = remaining,
+                    isRunning        = running,
+                    isPaused         = !running && remaining > 0,
+                    phase            = phase,
+                    timerMode        = TimerMode.POMODORO,
+                )
+            }
         }
     }
 
@@ -371,18 +422,6 @@ class TimerViewModel @Inject constructor(
     // Private — Pomodoro phase lifecycle
     // ========================================================================
 
-    /**
-     * Called when [TimerForegroundService] signals phase completion.
-     *
-     * Sequence:
-     *   1. Persist the completed FOCUS session (breaks are not recorded).
-     *   2. Advance the focus counter.
-     *   3. Choose the next phase: SHORT_BREAK → every N sessions → LONG_BREAK.
-     *   4. Manage sound and DND for the incoming phase.
-     *   5. Auto-start the next phase with duration from [SettingsRepository].
-     *
-     * LONG_BREAK completion resets [sessionCount] so the Pomodoro cycle repeats.
-     */
     private fun onPhaseFinished(phaseString: String) {
         val phase = runCatching { TimerPhase.valueOf(phaseString) }.getOrElse {
             Log.e(TAG, "Unknown phase in BROADCAST_FINISHED: '$phaseString'")
@@ -393,6 +432,7 @@ class TimerViewModel @Inject constructor(
             saveSession(wasCompleted = true, phase = phase)
             sessionCount++
             _timerState.update { it.copy(sessionsCompleted = it.sessionsCompleted + 1) }
+            _focusSessionCompleted.tryEmit(Unit)
         }
 
         val sessionsBeforeLong = sessionsBeforeLongBreakFlow.value
@@ -404,22 +444,14 @@ class TimerViewModel @Inject constructor(
 
             TimerPhase.SHORT_BREAK -> TimerPhase.FOCUS
 
-            TimerPhase.LONG_BREAK -> {
-                // Reset the cycle so the user gets N short breaks before the next long break.
+            TimerPhase.LONG_BREAK  -> {
                 sessionCount = 0
                 TimerPhase.FOCUS
             }
         }
 
-        // Sound + DND lifecycle: active during FOCUS, suspended during breaks
         if (nextPhase == TimerPhase.FOCUS) {
-            val sound = ambientSound.value
-            if (sound != AmbientSound.NONE) {
-                soundManager.play(sound, ambientVolume.value)
-            }
-            if (dndEnabled.value && dndManager.isDndPermissionGranted()) {
-                dndManager.enableDnd()
-            }
+            startSoundAndDnd()
         } else {
             soundManager.pause()
             dndManager.disableDnd()
@@ -435,19 +467,16 @@ class TimerViewModel @Inject constructor(
         launchPhase(nextPhase, nextDurationSeconds)
     }
 
-    /**
-     * Updates [_timerState] and starts [TimerForegroundService] for any phase.
-     * Also schedules the WorkManager alarm watchdog so phase completion is
-     * reliable even if the process is killed.
-     */
     private fun launchPhase(phase: TimerPhase, durationSeconds: Int) {
         sessionStartMs = System.currentTimeMillis()
 
         _timerState.update { current ->
             current.copy(
                 phase            = phase,
+                timerMode        = TimerMode.POMODORO,
                 totalSeconds     = durationSeconds,
                 remainingSeconds = durationSeconds,
+                elapsedSeconds   = 0,
                 isRunning        = true,
                 isPaused         = false,
             )
@@ -468,8 +497,8 @@ class TimerViewModel @Inject constructor(
 
     private fun saveSession(wasCompleted: Boolean, phase: TimerPhase) {
         val startMs = sessionStartMs
-        sessionStartMs = 0L         // Zero before launch — prevents double-insert
-        if (startMs == 0L) return   // Guard: no active session to save
+        sessionStartMs = 0L
+        if (startMs == 0L) return
 
         val durationSeconds = ((System.currentTimeMillis() - startMs) / 1000L).toInt()
         val tag = when (phase) {
@@ -494,8 +523,14 @@ class TimerViewModel @Inject constructor(
     }
 
     // ========================================================================
-    // Private — service communication
+    // Private — helpers
     // ========================================================================
+
+    private fun startSoundAndDnd() {
+        val sound = ambientSound.value
+        if (sound != AmbientSound.NONE) soundManager.play(sound, ambientVolume.value)
+        if (dndEnabled.value && dndManager.isDndPermissionGranted()) dndManager.enableDnd()
+    }
 
     private fun sendServiceAction(action: String) {
         val intent = Intent(application, TimerForegroundService::class.java).apply {
@@ -520,18 +555,6 @@ class TimerViewModel @Inject constructor(
     // Private — streak computation
     // ========================================================================
 
-    /**
-     * Counts how many consecutive calendar days (epoch-day units) appear at
-     * the head of [epochDays], which must already be sorted descending.
-     *
-     * The streak is considered "alive" if the most-recent completed day is
-     * either **today** or **yesterday** — this covers the case where the user
-     * hasn't focused yet today but maintained a streak until yesterday.
-     *
-     * Returns 0 when:
-     *   - the list is empty
-     *   - the most-recent day is older than yesterday
-     */
     private fun computeStreak(epochDays: List<Long>): Int {
         if (epochDays.isEmpty()) return 0
         val todayEpochDay     = System.currentTimeMillis() / 86_400_000L
@@ -539,7 +562,6 @@ class TimerViewModel @Inject constructor(
         val sortedDays        = epochDays.sortedDescending()
         val mostRecent        = sortedDays.first()
 
-        // Streak expired if no session on today or yesterday
         if (mostRecent < yesterdayEpochDay) return 0
 
         var streak   = 0

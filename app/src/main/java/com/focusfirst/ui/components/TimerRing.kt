@@ -28,7 +28,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.focusfirst.data.model.IntervalPreset
+import com.focusfirst.data.model.TimerMode
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
 import com.focusfirst.ui.theme.FocusFirstTheme
@@ -66,7 +68,9 @@ fun TimerRing(
     size:       Dp       = 280.dp,
 ) {
     // ── Phase colour ──────────────────────────────────────────────────────────
-    val ringColor  = timerState.phase.ringColor()
+    // Flow mode uses purple; Pomodoro phases use their standard accent colors.
+    val ringColor  = if (timerState.timerMode == TimerMode.FLOW) Color(0xFF9B59FF)
+                     else timerState.phase.ringColor()
     val textColor  = MaterialTheme.colorScheme.onBackground
     val typography = MaterialTheme.typography
 
@@ -94,10 +98,11 @@ fun TimerRing(
     )
 
     // ── Phase label ───────────────────────────────────────────────────────────
-    val phaseLabel = when (timerState.phase) {
-        TimerPhase.FOCUS       -> "FOCUS"
-        TimerPhase.SHORT_BREAK -> "SHORT BREAK"
-        TimerPhase.LONG_BREAK  -> "LONG BREAK"
+    val phaseLabel = when {
+        timerState.timerMode == TimerMode.FLOW          -> "FLOW"
+        timerState.phase == TimerPhase.FOCUS            -> "FOCUS"
+        timerState.phase == TimerPhase.SHORT_BREAK      -> "SHORT BREAK"
+        else                                            -> "LONG BREAK"
     }
 
     // ── Shadow-proof alias ────────────────────────────────────────────────────

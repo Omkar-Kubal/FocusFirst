@@ -3,4 +3,5 @@
     <string name="support_email">omkarkubal@protonmail.com</string>
     <string name="privacy_policy_url">https://tokifocus.blogspot.com/privacy-policy</string>
     <string name="terms_url">https://tokifocus.blogspot.com/terms</string>
+    <string name="widget_description">Toki focus timer widget</string>
 </resources>

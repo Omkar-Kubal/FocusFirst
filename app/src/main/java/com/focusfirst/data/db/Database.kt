@@ -2,11 +2,16 @@ package com.focusfirst.data.db
 
 import androidx.room.Dao
 import androidx.room.Database
+import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.Migration
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.focusfirst.data.model.TaskEntity
 import kotlinx.coroutines.flow.Flow
 
 // ============================================================================
@@ -140,6 +145,54 @@ interface SessionDao {
 }
 
 // ============================================================================
+// TaskDao
+// ============================================================================
+
+@Dao
+interface TaskDao {
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY createdAt DESC")
+    fun observeActiveTasks(): Flow<List<TaskEntity>>
+
+    @Insert
+    suspend fun insert(task: TaskEntity): Long
+
+    @Update
+    suspend fun update(task: TaskEntity)
+
+    @Delete
+    suspend fun delete(task: TaskEntity)
+
+    @Query("UPDATE tasks SET completedPomodoros = completedPomodoros + 1 WHERE id = :id")
+    suspend fun incrementPomodoro(id: Int)
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 0")
+    fun observeActiveCount(): Flow<Int>
+}
+
+// ============================================================================
+// Migration
+// ============================================================================
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `tasks` (
+                `id`                INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `title`             TEXT    NOT NULL,
+                `targetPomodoros`   INTEGER NOT NULL DEFAULT 4,
+                `completedPomodoros` INTEGER NOT NULL DEFAULT 0,
+                `isCompleted`       INTEGER NOT NULL DEFAULT 0,
+                `createdAt`         INTEGER NOT NULL DEFAULT 0,
+                `tag`               TEXT    NOT NULL DEFAULT 'Focus'
+            )
+            """.trimIndent()
+        )
+    }
+}
+
+// ============================================================================
 // Database
 // ============================================================================
 
@@ -147,15 +200,15 @@ interface SessionDao {
  * Single Room database for FocusFirst.
  *
  * Migrations:
- *   Version 1 — initial schema (sessions table).
- *   Add a Migration object and list it in databaseBuilder() before bumping
- *   [version]; do NOT use fallbackToDestructiveMigration() in production.
+ *   Version 1 → initial schema (sessions table).
+ *   Version 2 → adds tasks table.
  */
 @Database(
-    entities     = [SessionEntity::class],
-    version      = 1,
+    entities     = [SessionEntity::class, TaskEntity::class],
+    version      = 2,
     exportSchema = false,
 )
 abstract class FocusDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
+    abstract fun taskDao(): TaskDao
 }

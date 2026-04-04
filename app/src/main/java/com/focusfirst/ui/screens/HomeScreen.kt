@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -35,8 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,15 +62,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.IntervalPreset
+import com.focusfirst.data.model.TimerMode
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
 import com.focusfirst.ui.components.BreakSuggestionSheet
 import com.focusfirst.ui.components.SoundSelectorSheet
+import com.focusfirst.ui.components.TaskSheet
 import com.focusfirst.ui.theme.FocusColors
 import com.focusfirst.ui.theme.LocalFocusDarkTheme
 import com.focusfirst.ui.theme.ringColor
 import com.focusfirst.util.BatteryPromptDialog
 import com.focusfirst.viewmodel.SettingsViewModel
+import com.focusfirst.viewmodel.TaskViewModel
 import com.focusfirst.viewmodel.TimerViewModel
 
 // ============================================================================
@@ -81,6 +85,7 @@ fun HomeScreen(
     viewModel:            TimerViewModel   = hiltViewModel(),
     settingsViewModel:    SettingsViewModel = hiltViewModel(),
     billingViewModel:     BillingViewModel  = hiltViewModel(),
+    taskViewModel:        TaskViewModel     = hiltViewModel(),
     onNavigateToSettings: () -> Unit        = {},
 ) {
     val timerState    by viewModel.timerState.collectAsStateWithLifecycle()
@@ -90,50 +95,55 @@ fun HomeScreen(
     val ambientSound  by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
     val ambientVolume by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
     val isPro         by billingViewModel.isPro.collectAsStateWithLifecycle()
+    val activeTasks   by taskViewModel.activeTasks.collectAsStateWithLifecycle()
+    val activeCount   by taskViewModel.activeCount.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
-    var showStopDialog  by rememberSaveable { mutableStateOf(false) }
-    var showSoundSheet  by remember { mutableStateOf(false) }
-    var showBreakSheet  by remember { mutableStateOf(false) }
-    var isLongBreak     by remember { mutableStateOf(false) }
+    // ── Local UI state ────────────────────────────────────────────────────────
+    var timerMode      by rememberSaveable { mutableStateOf(TimerMode.POMODORO) }
+    var showStopDialog by rememberSaveable { mutableStateOf(false) }
+    var showSoundSheet by remember { mutableStateOf(false) }
+    var showBreakSheet by remember { mutableStateOf(false) }
+    var showTaskSheet  by remember { mutableStateOf(false) }
+    var isLongBreak    by remember { mutableStateOf(false) }
 
-    // Show break suggestion sheet when the phase transitions to a break
+    // The task currently linked to this timer session
+    val selectedTask = activeTasks.find { it.id == taskViewModel.selectedTaskId }
+
+    // ── Increment task pomodoro on focus session completion ───────────────────
+    LaunchedEffect(Unit) {
+        viewModel.focusSessionCompleted.collect {
+            taskViewModel.selectedTaskId?.let { id ->
+                taskViewModel.incrementPomodoro(id)
+            }
+        }
+    }
+
+    // ── Show break suggestion sheet when phase transitions to a break ─────────
     LaunchedEffect(timerState.phase) {
-        if (timerState.isRunning) {
+        if (timerState.isRunning && timerState.timerMode == TimerMode.POMODORO) {
             when (timerState.phase) {
-                TimerPhase.SHORT_BREAK -> {
-                    isLongBreak    = false
-                    showBreakSheet = true
-                }
-                TimerPhase.LONG_BREAK  -> {
-                    isLongBreak    = true
-                    showBreakSheet = true
-                }
+                TimerPhase.SHORT_BREAK -> { isLongBreak = false; showBreakSheet = true }
+                TimerPhase.LONG_BREAK  -> { isLongBreak = true;  showBreakSheet = true }
                 else -> {}
             }
         }
     }
 
+    // ── Dialogs + sheets ──────────────────────────────────────────────────────
     if (showStopDialog) {
         AlertDialog(
             onDismissRequest = { showStopDialog = false },
             title = { Text("Stop session?") },
-            text  = {
-                Text("Your progress will be saved if you've focused for 30+ seconds.")
-            },
+            text  = { Text("Your progress will be saved if you've focused for 30+ seconds.") },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.stop()
-                    showStopDialog = false
-                }) {
+                TextButton(onClick = { viewModel.stop(); showStopDialog = false }) {
                     Text("Stop")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showStopDialog = false }) {
-                    Text("Keep going")
-                }
+                TextButton(onClick = { showStopDialog = false }) { Text("Keep going") }
             },
         )
     }
@@ -151,11 +161,8 @@ fun HomeScreen(
                 settingsViewModel.updateAmbientVolume(volume)
                 viewModel.updateVolume(volume)
             },
-            onDismiss       = { showSoundSheet = false },
-            onUpgradeClick  = {
-                showSoundSheet = false
-                billingViewModel.openUpgradeSheet()
-            },
+            onDismiss      = { showSoundSheet = false },
+            onUpgradeClick = { showSoundSheet = false; billingViewModel.openUpgradeSheet() },
         )
     }
 
@@ -167,12 +174,31 @@ fun HomeScreen(
         )
     }
 
-    BatteryPromptDialog(
-        settingsViewModel = settingsViewModel,
-        context           = context,
-    )
+    if (showTaskSheet) {
+        TaskSheet(
+            tasks           = activeTasks,
+            selectedTaskId  = taskViewModel.selectedTaskId,
+            isPro           = isPro,
+            activeCount     = activeCount,
+            onTaskSelected  = { task ->
+                taskViewModel.selectedTaskId = task?.id
+                showTaskSheet = false
+            },
+            onAddTask       = { taskViewModel.addTask(it) },
+            onDeleteTask    = { taskViewModel.deleteTask(it) },
+            onCompleteTask  = { taskViewModel.completeTask(it) },
+            onUpgradeClick  = { showTaskSheet = false; billingViewModel.openUpgradeSheet() },
+            onDismiss       = { showTaskSheet = false },
+        )
+    }
+
+    BatteryPromptDialog(settingsViewModel = settingsViewModel, context = context)
 
     val scheme = MaterialTheme.colorScheme
+
+    // ========================================================================
+    // Layout
+    // ========================================================================
 
     Column(
         modifier            = Modifier
@@ -183,13 +209,32 @@ fun HomeScreen(
 
         HomeTopBar(onSettingsClick = onNavigateToSettings)
 
-        PresetPillRow(
-            activePreset = timerState.preset,
-            isRunning    = timerState.isRunning,
-            onSelect     = { viewModel.selectPreset(it) },
+        // ── Mode toggle — 🍅 Pomodoro / 🌊 Flow ─────────────────────────────
+        ModeToggleRow(
+            selectedMode   = timerMode,
+            isTimerActive  = timerState.isRunning || timerState.isPaused,
+            onModeSelected = { timerMode = it },
         )
 
-        // ── Gap between pills and ring ────────────────────────────────────────
+        // ── Preset pills (hidden in Flow mode) ───────────────────────────────
+        AnimatedVisibility(visible = timerMode == TimerMode.POMODORO) {
+            PresetPillRow(
+                activePreset = timerState.preset,
+                isRunning    = timerState.isRunning,
+                onSelect     = { viewModel.selectPreset(it) },
+            )
+        }
+
+        if (timerMode == TimerMode.FLOW && !timerState.isRunning && !timerState.isPaused) {
+            Text(
+                text     = "Flow mode — focus as long as you need",
+                fontSize = 12.sp,
+                color    = scheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+        }
+
+        // ── Gap between controls and ring ────────────────────────────────────
         Spacer(Modifier.height(16.dp))
 
         Box(
@@ -251,8 +296,38 @@ fun HomeScreen(
             }
         }
 
+        Spacer(Modifier.height(8.dp))
+
+        // ── Task chip ─────────────────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .clickable { showTaskSheet = true }
+                .background(
+                    color = scheme.onSurface.copy(alpha = 0.06f),
+                    shape = RoundedCornerShape(20.dp),
+                )
+                .padding(horizontal = 14.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector        = Icons.Outlined.TaskAlt,
+                contentDescription = null,
+                tint               = scheme.onSurface.copy(alpha = 0.5f),
+                modifier           = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text     = selectedTask?.title ?: "No task",
+                fontSize = 12.sp,
+                color    = scheme.onSurface.copy(
+                    alpha = if (selectedTask != null) 0.8f else 0.35f
+                ),
+            )
+        }
+
         Spacer(Modifier.height(16.dp))
 
+        // ── FAB ───────────────────────────────────────────────────────────────
         val fabIcon  = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
         val fabLabel = when {
             timerState.isRunning -> "Pause"
@@ -260,9 +335,10 @@ fun HomeScreen(
             else                 -> "Start"
         }
         val fabAction: () -> Unit = when {
-            timerState.isRunning -> ({ viewModel.pause() })
-            timerState.isPaused  -> ({ viewModel.resume() })
-            else                 -> ({ viewModel.start() })
+            timerState.isRunning                    -> ({ viewModel.pause() })
+            timerState.isPaused                     -> ({ viewModel.resume() })
+            timerMode == TimerMode.FLOW             -> ({ viewModel.startFlow() })
+            else                                    -> ({ viewModel.start() })
         }
 
         Surface(
@@ -343,6 +419,55 @@ private fun HomeTopBar(onSettingsClick: () -> Unit) {
 }
 
 @Composable
+private fun ModeToggleRow(
+    selectedMode:   TimerMode,
+    isTimerActive:  Boolean,
+    onModeSelected: (TimerMode) -> Unit,
+) {
+    val dark = LocalFocusDarkTheme.current
+
+    Row(
+        modifier              = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        listOf(
+            TimerMode.POMODORO to "\uD83C\uDF45 Pomodoro",
+            TimerMode.FLOW     to "\uD83C\uDF0A Flow",
+        ).forEach { (mode, label) ->
+            val isSelected = selectedMode == mode
+            val bg = when {
+                isSelected && mode == TimerMode.POMODORO -> Color(0xFFE84B1A)
+                isSelected && mode == TimerMode.FLOW     -> Color(0xFF9B59FF)
+                dark -> Color.White.copy(alpha = 0.1f)
+                else -> FocusColors.LightPillIdle
+            }
+            val fg = when {
+                isSelected -> Color.White
+                dark       -> Color.White.copy(alpha = 0.5f)
+                else       -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            }
+            Box(
+                modifier = Modifier
+                    .alpha(if (isTimerActive && !isSelected) 0.4f else 1f)
+                    .background(color = bg, shape = RoundedCornerShape(50.dp))
+                    .clickable(enabled = !isTimerActive) { onModeSelected(mode) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text       = label,
+                    fontSize   = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color      = fg,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun PresetPillRow(
     activePreset: IntervalPreset,
     isRunning:    Boolean,
@@ -394,14 +519,16 @@ private fun VoidTimerRing(timerState: TimerState) {
         label         = "voidProgress",
     )
 
-    val ringAccent = timerState.phase.ringColor()
+    val isFlow    = timerState.timerMode == TimerMode.FLOW
+    val ringAccent = if (isFlow) Color(0xFF9B59FF) else timerState.phase.ringColor()
     val scheme     = MaterialTheme.colorScheme
     val trackColor = ringAccent.copy(alpha = 0.12f)
 
-    val phaseLabel = when (timerState.phase) {
-        TimerPhase.FOCUS       -> "FOCUS"
-        TimerPhase.SHORT_BREAK -> "SHORT BREAK"
-        TimerPhase.LONG_BREAK  -> "LONG BREAK"
+    val phaseLabel = when {
+        isFlow                             -> "FLOW"
+        timerState.phase == TimerPhase.FOCUS       -> "FOCUS"
+        timerState.phase == TimerPhase.SHORT_BREAK -> "SHORT BREAK"
+        else                               -> "LONG BREAK"
     }
 
     Box(
@@ -549,10 +676,7 @@ private fun BentoStatsRow(
                 )
                 if (streakDays >= 7) {
                     Spacer(Modifier.width(4.dp))
-                    Text(
-                        text     = "\uD83D\uDD25",   // 🔥
-                        fontSize = 18.sp,
-                    )
+                    Text(text = "\uD83D\uDD25", fontSize = 18.sp)
                 }
             }
             Spacer(Modifier.height(4.dp))
