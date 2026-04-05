@@ -56,6 +56,7 @@ import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.components.FirstLaunchDialog
+import androidx.activity.compose.BackHandler
 import com.focusfirst.ui.screens.HomeScreen
 import com.focusfirst.ui.screens.LicensesScreen
 import com.focusfirst.ui.screens.SettingsScreen
@@ -307,6 +308,7 @@ private fun FocusFirstAppContent(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
                 Tab.SETTINGS -> if (showLicenses) {
+                    BackHandler { showLicenses = false }
                     LicensesScreen(onBack = { showLicenses = false })
                 } else {
                     SettingsScreen(

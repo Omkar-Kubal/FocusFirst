@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -73,6 +74,8 @@ class TimerForegroundService : Service() {
     // ── Flow mode ─────────────────────────────────────────────────────────────
     private var isFlowMode:     Boolean = false
     private var elapsedSeconds: Int     = 0
+
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val notificationManager: NotificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -147,6 +150,7 @@ class TimerForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        releaseWakeLock()
         serviceScope.cancel()
         Log.d(TAG, "onDestroy — scope cancelled")
     }
@@ -167,6 +171,7 @@ class TimerForegroundService : Service() {
 
         saveBootPrefs(endTimeMs = System.currentTimeMillis() + durationSeconds * 1000L)
         startForegroundCompat()
+        acquireWakeLock(durationSeconds * 1000L)
         startTimerCoroutine()
     }
 
@@ -182,6 +187,7 @@ class TimerForegroundService : Service() {
         // knows a session was active even though no specific end time is set.
         saveBootPrefs(endTimeMs = Long.MAX_VALUE)
         startForegroundCompat()
+        acquireWakeLock(60 * 60 * 1000L) // max 1 hour for Flow sessions
         startFlowCoroutine()
     }
 
@@ -473,6 +479,20 @@ class TimerForegroundService : Service() {
     // ========================================================================
     // Helpers
     // ========================================================================
+
+    private fun acquireWakeLock(timeoutMs: Long) {
+        releaseWakeLock()
+        val pm = getSystemService(PowerManager::class.java)
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "Toki:TimerWakeLock",
+        ).also { it.acquire(timeoutMs) }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) wakeLock?.release()
+        wakeLock = null
+    }
 
     private fun TimerPhase.displayName(): String = when (this) {
         TimerPhase.FOCUS       -> "Focus"

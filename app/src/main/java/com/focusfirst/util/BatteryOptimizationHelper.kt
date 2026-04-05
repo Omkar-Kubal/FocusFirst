@@ -2,14 +2,22 @@ package com.focusfirst.util
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focusfirst.viewmodel.SettingsViewModel
 
@@ -106,11 +114,30 @@ fun BatteryPromptDialog(
                 Text("Enable reliable timer")
             },
             text = {
-                Text(
-                    "On Xiaomi, Realme and OnePlus, background restrictions " +
-                    "can stop your timer. Tap Fix Now to allow Toki " +
-                    "to run in the background."
-                )
+                Column {
+                    Text(
+                        "On Xiaomi, Realme and OnePlus, background restrictions " +
+                        "can stop your timer. Tap Fix Now to allow Toki " +
+                        "to run in the background. For step-by-step fix instructions " +
+                        "for your device visit dontkillmyapp.com"
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(
+                        onClick = {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://dontkillmyapp.com"),
+                            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                            context.startActivity(intent)
+                        },
+                    ) {
+                        Text(
+                            "dontkillmyapp.com",
+                            color    = Color(0xFF1A9E5F),
+                            fontSize = 13.sp,
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(

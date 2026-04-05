@@ -62,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focusfirst.BuildConfig
 import com.focusfirst.R
 import com.focusfirst.billing.BillingViewModel
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import com.focusfirst.billing.ProBadge
 import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.ui.components.SoundSelectorSheet
@@ -130,8 +132,11 @@ fun SettingsScreen(
         }
     }
 
-    val scheme = MaterialTheme.colorScheme
-    val dark   = LocalFocusDarkTheme.current
+    val scheme       = MaterialTheme.colorScheme
+    val dark         = LocalFocusDarkTheme.current
+    val privacyUrl   = stringResource(R.string.privacy_policy_url)
+    val termsUrl     = stringResource(R.string.terms_url)
+    val supportEmail = stringResource(R.string.support_email)
 
     // Focus Guard screen navigation — shown as an overlay
     if (showFocusGuard) {
@@ -545,37 +550,47 @@ fun SettingsScreen(
                     },
                 )
                 HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
-                // 3. Privacy Policy
+                // 3. Contact Support
+                SettingsClickRow(
+                    title    = "Contact Support",
+                    subtitle = supportEmail,
+                    scheme   = scheme,
+                    onClick  = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:")
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf(supportEmail))
+                            putExtra(Intent.EXTRA_SUBJECT, "Toki Support - v${BuildConfig.VERSION_NAME}")
+                        }
+                        try { context.startActivity(intent) }
+                        catch (e: Exception) { Firebase.crashlytics.recordException(e) }
+                    },
+                )
+                HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
+                // 4. Privacy Policy
                 SettingsClickRow(
                     title    = "Privacy Policy",
                     subtitle = "How we handle your data",
                     scheme   = scheme,
                     onClick  = {
                         context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://tokifocus.blogspot.com/privacy-policy"),
-                            ),
+                            Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl)),
                         )
                     },
                 )
                 HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
-                // 4. Terms of Service
+                // 5. Terms of Service
                 SettingsClickRow(
                     title    = "Terms of Service",
                     subtitle = "Usage terms and conditions",
                     scheme   = scheme,
                     onClick  = {
                         context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://tokifocus.blogspot.com/terms"),
-                            ),
+                            Intent(Intent.ACTION_VIEW, Uri.parse(termsUrl)),
                         )
                     },
                 )
                 HorizontalDivider(color = scheme.onSurface.copy(alpha = 0.06f))
-                // 5. Open Source Licenses
+                // 6. Open Source Licenses
                 SettingsClickRow(
                     title    = "Open Source Licenses",
                     subtitle = "Third-party libraries we use",

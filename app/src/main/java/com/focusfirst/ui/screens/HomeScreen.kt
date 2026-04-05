@@ -88,9 +88,10 @@ fun HomeScreen(
     taskViewModel:        TaskViewModel     = hiltViewModel(),
     onNavigateToSettings: () -> Unit        = {},
 ) {
-    val timerState    by viewModel.timerState.collectAsStateWithLifecycle()
-    val todayCount    by viewModel.todayCount.collectAsStateWithLifecycle()
-    val streakDays    by viewModel.streakDays.collectAsStateWithLifecycle()
+    val timerState     by viewModel.timerState.collectAsStateWithLifecycle()
+    val todayCount     by viewModel.todayCount.collectAsStateWithLifecycle()
+    val streakDays     by viewModel.streakDays.collectAsStateWithLifecycle()
+    val totalCompleted by viewModel.totalCompleted.collectAsStateWithLifecycle()
     val dailyGoal     by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
     val ambientSound  by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
     val ambientVolume by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
@@ -171,7 +172,8 @@ fun HomeScreen(
         BreakSuggestionSheet(
             isLongBreak          = isLongBreak,
             breakDurationSeconds = timerState.totalSeconds,
-            onDismiss            = { 
+            breakSessionCount    = totalCompleted,
+            onDismiss            = {
                 showBreakSheet = false
                 com.focusfirst.analytics.TokiAnalytics.logBreakSuggestionDismissed()
             },

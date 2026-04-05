@@ -36,9 +36,10 @@ import com.focusfirst.data.model.SHORT_BREAK_ACTIVITIES
 fun BreakSuggestionSheet(
     isLongBreak:          Boolean,
     breakDurationSeconds: Int,
+    breakSessionCount:    Int,
     onDismiss:            () -> Unit,
 ) {
-    val activities = remember(isLongBreak) {
+    val activities = remember(isLongBreak, breakSessionCount) {
         val list = if (isLongBreak) LONG_BREAK_ACTIVITIES else SHORT_BREAK_ACTIVITIES
         list.shuffled().take(3)
     }

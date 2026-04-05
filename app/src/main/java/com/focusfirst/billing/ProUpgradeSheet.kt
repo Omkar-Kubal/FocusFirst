@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.focusfirst.analytics.TokiAnalytics
 import kotlinx.coroutines.delay
 
 private val SheetBackground = Color(0xFF121212)
@@ -89,8 +90,9 @@ fun ProUpgradeSheet(
         }
     }
 
-    // Reset spinner when user cancels the billing flow
+    // Log screen view and reset spinner on billing cancellation
     LaunchedEffect(Unit) {
+        TokiAnalytics.logUpgradeScreenViewed()
         billingViewModel.billingCancelled.collect { isLoading = false }
     }
 

@@ -188,8 +188,6 @@ class BillingManager @Inject constructor(
      * @return [BillingResult] — check [BillingResult.responseCode] == OK for a successful launch.
      */
     fun launchBillingFlow(activity: Activity): BillingResult {
-        TokiAnalytics.logUpgradeScreenViewed()
-
         val details = cachedProductDetails
             ?: return BillingResult.newBuilder()
                 .setResponseCode(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE)
