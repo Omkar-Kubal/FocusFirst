@@ -108,7 +108,7 @@ fun BatteryPromptDialog(
             text = {
                 Text(
                     "On Xiaomi, Realme and OnePlus, background restrictions " +
-                    "can stop your timer. Tap Fix Now to allow FocusFirst " +
+                    "can stop your timer. Tap Fix Now to allow Toki " +
                     "to run in the background."
                 )
             },

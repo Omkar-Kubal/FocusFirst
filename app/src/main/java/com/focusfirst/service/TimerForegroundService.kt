@@ -334,7 +334,7 @@ class TimerForegroundService : Service() {
                             this[WidgetKeys.REMAINING] =
                                 if (isFlowMode) elapsedSeconds else remainingSeconds
                             this[WidgetKeys.PHASE]   =
-                                if (isFlowMode) "FLOW" else currentPhase.name
+                                if (isFlowMode) "FLOW" else currentPhase.displayName()
                             this[WidgetKeys.RUNNING]  = isRunning
                             this[WidgetKeys.TODAY]    = todayCount
                         }

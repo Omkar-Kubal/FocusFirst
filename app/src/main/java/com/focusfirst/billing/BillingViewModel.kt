@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -21,6 +22,9 @@ class BillingViewModel @Inject constructor(
 
     /** Current state of the billing client connection + purchase lifecycle. */
     val billingState: StateFlow<BillingState> = billingManager.billingState
+
+    /** Emits Unit when the user cancels the billing flow — used to reset loading spinners. */
+    val billingCancelled: SharedFlow<Unit> = billingManager.billingCancelled
 
     /** Controls visibility of the Pro upgrade bottom sheet across the whole app. */
     private val _showUpgradeSheet = MutableStateFlow(false)

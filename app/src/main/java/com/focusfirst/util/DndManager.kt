@@ -10,8 +10,12 @@ class DndManager(private val context: Context) {
     private val notificationManager =
         context.getSystemService(NotificationManager::class.java)
 
-    // Saved before each enableDnd() call so we can restore exactly what was set
-    private var previousFilter = NotificationManager.INTERRUPTION_FILTER_ALL
+    private val prefs = context.getSharedPreferences("focusfirst_prefs", Context.MODE_PRIVATE)
+
+    // Persisted across process kills so DND is always restored to the correct filter
+    private var previousFilter: Int
+        get() = prefs.getInt("dnd_previous_filter", NotificationManager.INTERRUPTION_FILTER_ALL)
+        set(value) { prefs.edit().putInt("dnd_previous_filter", value).apply() }
 
     fun isDndPermissionGranted(): Boolean =
         notificationManager.isNotificationPolicyAccessGranted

@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.focusfirst.BuildConfig
+import com.focusfirst.billing.BillingManager
 import com.google.firebase.analytics.ktx.analytics
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class FocusFirstApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var billingManager: BillingManager
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -31,6 +33,11 @@ class FocusFirstApp : Application(), Configuration.Provider {
         Firebase.analytics.logEvent("app_opened", null)
         Firebase.crashlytics.setCrashlyticsCollectionEnabled(true)
         Firebase.crashlytics.setCustomKey("app_version", BuildConfig.VERSION_NAME)
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        billingManager.destroy()
     }
 
     private fun createNotificationChannels() {

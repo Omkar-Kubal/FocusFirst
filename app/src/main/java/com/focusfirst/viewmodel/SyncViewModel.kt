@@ -42,7 +42,7 @@ class SyncViewModel @Inject constructor(
     private val settingsRepository:  SettingsRepository,
 ) : ViewModel() {
 
-    val isPro: StateFlow<Boolean> = settingsRepository.isPro
+    val isPro: StateFlow<Boolean> = settingsRepository.proUnlocked
         .stateIn(
             scope          = viewModelScope,
             started        = SharingStarted.Eagerly,

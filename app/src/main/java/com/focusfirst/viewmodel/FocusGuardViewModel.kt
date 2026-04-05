@@ -11,6 +11,7 @@ import com.focusfirst.data.model.AppInfo
 import com.focusfirst.data.repository.FocusGuardRepository
 import com.focusfirst.service.FocusGuardAccessibilityService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -110,7 +111,8 @@ class FocusGuardViewModel @Inject constructor(
                 runCatching {
                     val info = pm.getApplicationInfo(app.packageName, 0)
                     info.category == android.content.pm.ApplicationInfo.CATEGORY_GAME
-                }.getOrDefault(false)
+                }.onFailure { Log.w(TAG, "getApplicationInfo failed for ${app.packageName}", it) }
+                 .getOrDefault(false)
             }.map { it.packageName }.toSet()
 
             repository.setBlockedApps(blockedApps.value + gameApps)
@@ -183,7 +185,7 @@ class FocusGuardViewModel @Inject constructor(
     }
 
     private fun checkUsagePermission(): Boolean {
-        return runCatching {
+        return runCatching<Boolean> {
             val appOps = application.getSystemService(Context.APP_OPS_SERVICE)
                     as android.app.AppOpsManager
             val mode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -201,6 +203,11 @@ class FocusGuardViewModel @Inject constructor(
                 )
             }
             mode == android.app.AppOpsManager.MODE_ALLOWED
-        }.getOrDefault(false)
+        }.onFailure { Log.w(TAG, "checkUsagePermission failed", it) }
+         .getOrDefault(false)
+    }
+
+    companion object {
+        private const val TAG = "FocusGuardViewModel"
     }
 }

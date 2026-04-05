@@ -108,7 +108,9 @@ class FirestoreRepository @Inject constructor(
 
             snapshot.documents.forEach { doc ->
                 try {
+                    val roomId = doc.id.toIntOrNull() ?: return@forEach
                     val session = SessionEntity(
+                        id              = roomId,
                         startedAt       = doc.getLong("startedAt")                    ?: 0L,
                         durationSeconds = doc.getLong("durationSeconds")?.toInt()     ?: 0,
                         wasCompleted    = doc.getBoolean("wasCompleted")               ?: false,

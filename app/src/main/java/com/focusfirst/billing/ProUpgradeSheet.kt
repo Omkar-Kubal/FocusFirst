@@ -56,9 +56,7 @@ private val proFeatures = listOf(
     "Subject tagging — track time per topic",
     "Detailed analytics + monthly heatmap",
     "Unlimited session history",
-    "CSV & PDF export",
     "AMOLED pure black mode",
-    "Lock screen timer",
     "All future Pro features",
 )
 
@@ -89,6 +87,11 @@ fun ProUpgradeSheet(
         billingViewModel.billingState.collect { state ->
             if (state == BillingState.UNAVAILABLE) isLoading = false
         }
+    }
+
+    // Reset spinner when user cancels the billing flow
+    LaunchedEffect(Unit) {
+        billingViewModel.billingCancelled.collect { isLoading = false }
     }
 
     // Show error snackbar when a purchase launch fails

@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -14,6 +17,10 @@ import com.focusfirst.FocusFirstApp
 import com.focusfirst.R
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.service.TimerAlarmWorker
+import com.focusfirst.widget.FocusFirstWidget
+import com.focusfirst.widget.WidgetKeys
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 // ============================================================================
@@ -58,6 +65,7 @@ class BootReceiver : BroadcastReceiver() {
                 .putBoolean(PREF_WAS_RUNNING, false)
                 .putLong(PREF_END_TIME_MS, 0L)
                 .apply()
+            resetWidget(context)
         }
     }
 
@@ -78,6 +86,30 @@ class BootReceiver : BroadcastReceiver() {
 
         WorkManager.getInstance(context)
             .enqueueUniqueWork("timer_alarm", ExistingWorkPolicy.REPLACE, request)
+    }
+
+    private fun resetWidget(context: Context) {
+        val pendingResult = goAsync()
+        MainScope().launch {
+            try {
+                val manager   = GlanceAppWidgetManager(context)
+                val glanceIds = manager.getGlanceIds(FocusFirstWidget::class.java)
+                glanceIds.forEach { glanceId ->
+                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
+                        prefs.toMutablePreferences().apply {
+                            this[WidgetKeys.RUNNING]   = false
+                            this[WidgetKeys.REMAINING] = 0
+                            this[WidgetKeys.PHASE]     = "READY"
+                        }
+                    }
+                }
+                FocusFirstWidget().updateAll(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "Widget reset failed: ${e.message}")
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 
     private fun showMissedSessionNotification(context: Context) {

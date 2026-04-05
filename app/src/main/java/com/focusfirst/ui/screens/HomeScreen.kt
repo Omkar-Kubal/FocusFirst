@@ -155,6 +155,7 @@ fun HomeScreen(
             isPro           = isPro,
             onSoundSelected = { sound ->
                 settingsViewModel.updateAmbientSound(sound)
+                com.focusfirst.analytics.TokiAnalytics.logSoundSelected(sound.displayName)
                 viewModel.updateSound(sound, ambientVolume)
             },
             onVolumeChanged = { volume ->
@@ -170,7 +171,10 @@ fun HomeScreen(
         BreakSuggestionSheet(
             isLongBreak          = isLongBreak,
             breakDurationSeconds = timerState.totalSeconds,
-            onDismiss            = { showBreakSheet = false },
+            onDismiss            = { 
+                showBreakSheet = false
+                com.focusfirst.analytics.TokiAnalytics.logBreakSuggestionDismissed()
+            },
         )
     }
 

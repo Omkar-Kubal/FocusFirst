@@ -8,6 +8,8 @@ import android.media.MediaPlayer
 import android.os.Build
 import android.util.Log
 import com.focusfirst.data.model.AmbientSound
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 
 class SoundManager(private val context: Context) {
 
@@ -72,6 +74,7 @@ class SoundManager(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to play ${sound.fileName}", e)
+            Firebase.crashlytics.recordException(e)
             abandonAudioFocus()
         }
     }

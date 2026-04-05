@@ -113,7 +113,22 @@ fun SettingsScreen(
     var showFocusGuard  by remember { mutableStateOf(false) }
 
     // Checked once per composition — user must navigate away/back to refresh after granting
-    val dndPermissionGranted by remember { mutableStateOf(dndManager.isDndPermissionGranted()) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var dndPermissionGranted by remember {
+        mutableStateOf(dndManager.isDndPermissionGranted())
+    }
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                dndPermissionGranted = 
+                    dndManager.isDndPermissionGranted()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val scheme = MaterialTheme.colorScheme
     val dark   = LocalFocusDarkTheme.current
@@ -218,7 +233,10 @@ fun SettingsScreen(
                     if (dndPermissionGranted) {
                         Switch(
                             checked         = dndEnabled,
-                            onCheckedChange = { settingsViewModel.updateDndEnabled(it) },
+                            onCheckedChange = { newValue ->
+                                settingsViewModel.updateDndEnabled(newValue)
+                                com.focusfirst.analytics.TokiAnalytics.logDndToggled(newValue)
+                            },
                             colors          = switchColors(scheme),
                         )
                     } else {
@@ -351,7 +369,10 @@ fun SettingsScreen(
                     currentSound    = ambientSound,
                     currentVolume   = ambientVolume,
                     isPro           = isPro,
-                    onSoundSelected = { settingsViewModel.updateAmbientSound(it) },
+                    onSoundSelected = { 
+                        settingsViewModel.updateAmbientSound(it)
+                        com.focusfirst.analytics.TokiAnalytics.logSoundSelected(it.displayName)
+                    },
                     onVolumeChanged = { settingsViewModel.updateAmbientVolume(it) },
                     onDismiss       = { showSoundSheet = false },
                     onUpgradeClick  = {

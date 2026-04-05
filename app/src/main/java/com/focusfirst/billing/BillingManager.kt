@@ -27,9 +27,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -60,6 +64,9 @@ class BillingManager @Inject constructor(
     private val _billingState = MutableStateFlow(BillingState.LOADING)
     val billingState: StateFlow<BillingState> = _billingState.asStateFlow()
 
+    private val _billingCancelled = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val billingCancelled = _billingCancelled.asSharedFlow()
+
     /** Cached after the first successful query so launchBillingFlow is synchronous. */
     private var cachedProductDetails: ProductDetails? = null
     private var retryCount = 0
@@ -74,11 +81,12 @@ class BillingManager @Inject constructor(
             BillingClient.BillingResponseCode.USER_CANCELED -> {
                 Log.d(TAG, "User cancelled billing flow")
                 TokiAnalytics.logUpgradeCancelled()
+                _billingCancelled.tryEmit(Unit)
             }
             else -> {
                 val msg = "Billing error ${billingResult.responseCode}: ${billingResult.debugMessage}"
                 Log.e(TAG, msg)
-                Firebase.crashlytics.log(msg)
+                Firebase.crashlytics.recordException(Exception(msg))
             }
         }
     }
@@ -91,6 +99,10 @@ class BillingManager @Inject constructor(
         .build()
 
     init {
+        // Pre-load persisted Pro status so _isPro is accurate before billing connects
+        scope.launch {
+            if (settingsRepository.proUnlocked.first()) _isPro.value = true
+        }
         startConnection()
     }
 

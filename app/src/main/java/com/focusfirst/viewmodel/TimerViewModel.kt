@@ -36,6 +36,7 @@ import com.focusfirst.util.DndManager
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,6 +45,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -113,8 +116,17 @@ class TimerViewModel @Inject constructor(
     private val _newBadges = MutableSharedFlow<List<Badge>>(extraBufferCapacity = 4)
     val newBadges: SharedFlow<List<Badge>> = _newBadges.asSharedFlow()
 
-    val todayCount: StateFlow<Int> = sessionDao
-        .observeTodayCount(todayStartMs())
+    private val todayStartFlow = flow {
+        while (true) {
+            val start = todayStartMs()
+            emit(start)
+            val msUntilMidnight = start + 86_400_000L - System.currentTimeMillis()
+            delay(msUntilMidnight.coerceAtLeast(1_000L))
+        }
+    }
+
+    val todayCount: StateFlow<Int> = todayStartFlow
+        .flatMapLatest { sessionDao.observeTodayCount(it) }
         .stateIn(
             scope        = viewModelScope,
             started      = SharingStarted.WhileSubscribed(5_000L),
@@ -125,7 +137,7 @@ class TimerViewModel @Inject constructor(
         .observeTotalCompleted()
         .stateIn(
             scope        = viewModelScope,
-            started      = SharingStarted.WhileSubscribed(5_000L),
+            started      = SharingStarted.Eagerly,
             initialValue = 0,
         )
 
@@ -172,7 +184,7 @@ class TimerViewModel @Inject constructor(
         .map { days -> computeStreak(days) }
         .stateIn(
             scope        = viewModelScope,
-            started      = SharingStarted.WhileSubscribed(5_000L),
+            started      = SharingStarted.Eagerly,
             initialValue = 0,
         )
 
@@ -198,7 +210,7 @@ class TimerViewModel @Inject constructor(
         )
 
     /** Whether the user has an active Pro purchase. Used to gate auto-sync. */
-    val isPro: StateFlow<Boolean> = settingsRepository.isPro
+    val isPro: StateFlow<Boolean> = settingsRepository.proUnlocked
         .stateIn(
             scope        = viewModelScope,
             started      = SharingStarted.Eagerly,
@@ -295,6 +307,12 @@ class TimerViewModel @Inject constructor(
      * The session is saved when the user manually stops.
      */
     fun startFlow() {
+        com.focusfirst.analytics.TokiAnalytics.logSessionStarted(
+            durationMinutes = 0, // flow mode = no fixed duration
+            soundEnabled = ambientSound.value != AmbientSound.NONE,
+            dndEnabled = dndEnabled.value,
+            hasTask = false
+        )
         sessionStartMs = System.currentTimeMillis()
 
         _timerState.update { current ->
@@ -324,12 +342,17 @@ class TimerViewModel @Inject constructor(
 
     fun pause() {
         Log.d(TAG, "pause")
+        cancelAlarm(application)
         soundManager.pause()
         sendServiceAction(TimerForegroundService.ACTION_PAUSE)
     }
 
     fun resume() {
         Log.d(TAG, "resume")
+        val state = _timerState.value
+        if (state.timerMode == TimerMode.POMODORO && state.remainingSeconds > 0) {
+            scheduleAlarm(application, state.remainingSeconds, state.phase)
+        }
         soundManager.resume()
         sendServiceAction(TimerForegroundService.ACTION_RESUME)
     }
@@ -506,6 +529,12 @@ class TimerViewModel @Inject constructor(
             }
         }
 
+        val nextDurationSeconds = when (nextPhase) {
+            TimerPhase.FOCUS       -> focusMinutesFlow.value * 60
+            TimerPhase.SHORT_BREAK -> shortBreakMinutesFlow.value * 60
+            TimerPhase.LONG_BREAK  -> longBreakMinutesFlow.value * 60
+        }
+
         if (nextPhase == TimerPhase.FOCUS) {
             startSoundAndDnd()
             setFocusGuardActive(true, nextDurationSeconds)
@@ -513,12 +542,6 @@ class TimerViewModel @Inject constructor(
             soundManager.pause()
             dndManager.disableDnd()
             setFocusGuardActive(false, 0)
-        }
-
-        val nextDurationSeconds = when (nextPhase) {
-            TimerPhase.FOCUS       -> focusMinutesFlow.value * 60
-            TimerPhase.SHORT_BREAK -> shortBreakMinutesFlow.value * 60
-            TimerPhase.LONG_BREAK  -> longBreakMinutesFlow.value * 60
         }
 
         Log.d(TAG, "onPhaseFinished phase=$phase → next=$nextPhase (${nextDurationSeconds}s) sessionCount=$sessionCount")
@@ -624,6 +647,9 @@ class TimerViewModel @Inject constructor(
                     val newBadgeObjects = newIds.mapNotNull { AllBadges.byId[it] }
                     _newBadges.tryEmit(newBadgeObjects)
                     Log.d(TAG, "Unlocked badges: $newIds")
+                }
+                if (streak in listOf(3, 7, 14, 30, 60, 100)) {
+                    TokiAnalytics.logStreakMilestone(streak)
                 }
             }.onFailure { Log.e(TAG, "Badge evaluation failed", it) }
         }
