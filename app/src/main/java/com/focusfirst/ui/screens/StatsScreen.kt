@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,10 +26,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FreeBreakfast
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.grayscale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -51,6 +55,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focusfirst.data.db.SessionEntity
+import com.focusfirst.data.model.Badge
+import com.focusfirst.viewmodel.BadgeViewModel
 import com.focusfirst.viewmodel.TimerViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -66,6 +72,7 @@ import java.util.Locale
 @Composable
 fun StatsScreen(
     timerViewModel:       TimerViewModel = hiltViewModel(),
+    badgeViewModel:       BadgeViewModel = hiltViewModel(),
     onNavigateToSettings: () -> Unit     = {},
 ) {
     val totalCompleted by timerViewModel.totalCompleted.collectAsStateWithLifecycle()
@@ -73,6 +80,7 @@ fun StatsScreen(
     val recentSessions by timerViewModel.recentSessions.collectAsStateWithLifecycle()
     val streakDays     by timerViewModel.streakDays.collectAsStateWithLifecycle()
     val allSessions    by timerViewModel.allSessions.collectAsStateWithLifecycle()
+    val badges         by badgeViewModel.badges.collectAsStateWithLifecycle()
 
     val weeklyTotal   = weeklySummary.sumOf { it.sessionCount }
     val todayEpochDay = System.currentTimeMillis() / 86_400_000L
@@ -167,6 +175,11 @@ fun StatsScreen(
         // 4 · Recent intervals
         item {
             RecentIntervalsSection(recentSessions = recentSessions)
+        }
+
+        // 5 · Achievements / Badges
+        item {
+            BadgesSection(badges = badges)
         }
     }
 }
@@ -741,3 +754,178 @@ private fun formatTimeAgo(startedAtMs: Long): String {
     val time = zdt.format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
     return "$prefix at $time"
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section 5 · Achievement Badges
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun BadgesSection(badges: List<Badge>) {
+    var selectedBadge by remember { mutableStateOf<Badge?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = 8.dp, bottom = 40.dp),
+    ) {
+        // Header
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment     = Alignment.CenterVertically,
+        ) {
+            Text(
+                text       = "Achievements",
+                fontSize   = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color      = Color.White,
+            )
+            val unlockedCount = badges.count { it.isUnlocked }
+            Text(
+                text     = "$unlockedCount / ${badges.size}",
+                fontSize = 12.sp,
+                color    = Color.White.copy(alpha = 0.4f),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        // 4-column grid
+        val columns = 4
+        val rows = (badges.size + columns - 1) / columns
+        for (row in 0 until rows) {
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                for (col in 0 until columns) {
+                    val index = row * columns + col
+                    if (index < badges.size) {
+                        BadgeCard(
+                            badge     = badges[index],
+                            modifier  = Modifier.weight(1f),
+                            onClick   = { selectedBadge = badges[index] },
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+            if (row < rows - 1) Spacer(Modifier.height(8.dp))
+        }
+    }
+
+    // Detail dialog
+    selectedBadge?.let { badge ->
+        BadgeDetailDialog(
+            badge     = badge,
+            onDismiss = { selectedBadge = null },
+        )
+    }
+}
+
+@Composable
+private fun BadgeCard(
+    badge:    Badge,
+    modifier: Modifier = Modifier,
+    onClick:  () -> Unit,
+) {
+    Surface(
+        modifier = modifier
+            .aspectRatio(0.85f)
+            .clickable(onClick = onClick)
+            .then(if (!badge.isUnlocked) Modifier.grayscale() else Modifier),
+        color  = if (badge.isUnlocked) Color(0xFF1A1A2E) else Color(0xFF0D0D0D),
+        shape  = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            width = 0.5.dp,
+            color = if (badge.isUnlocked) Color(0xFF6C63FF).copy(alpha = 0.35f)
+                    else Color.White.copy(alpha = 0.07f),
+        ),
+    ) {
+        Column(
+            modifier            = Modifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text     = if (badge.isUnlocked) badge.emoji else "🔒",
+                fontSize = 22.sp,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text       = if (badge.isUnlocked) badge.name else "???",
+                fontSize   = 9.sp,
+                fontWeight = FontWeight.Medium,
+                color      = if (badge.isUnlocked) Color.White else Color.White.copy(alpha = 0.25f),
+                textAlign  = TextAlign.Center,
+                maxLines   = 2,
+                overflow   = TextOverflow.Ellipsis,
+                lineHeight = 12.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor   = Color(0xFF12121E),
+        shape            = RoundedCornerShape(20.dp),
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text(text = badge.emoji, fontSize = 48.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text       = if (badge.isUnlocked) badge.name else "???",
+                    fontSize   = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = Color.White,
+                    textAlign  = TextAlign.Center,
+                )
+            }
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text      = badge.description,
+                    fontSize  = 14.sp,
+                    color     = Color.White.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                )
+                if (badge.isUnlocked && badge.unlockedAt != null) {
+                    Spacer(Modifier.height(12.dp))
+                    val date = Instant.ofEpochMilli(badge.unlockedAt)
+                        .atZone(ZoneId.systemDefault())
+                        .format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US))
+                    Surface(
+                        color = Color(0xFF6C63FF).copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        Text(
+                            text     = "Unlocked $date",
+                            fontSize = 11.sp,
+                            color    = Color(0xFF6C63FF),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                } else if (!badge.isUnlocked) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text     = "Keep focusing to unlock this badge",
+                        fontSize = 11.sp,
+                        color    = Color.White.copy(alpha = 0.3f),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Close", color = Color(0xFF6C63FF))
+            }
+        },
+    )
+}
+

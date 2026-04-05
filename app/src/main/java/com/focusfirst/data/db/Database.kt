@@ -6,6 +6,7 @@ import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.Migration
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
@@ -38,6 +39,11 @@ data class SessionEntity(
     val wasCompleted: Boolean,
     /** Label shown on the stats screen (e.g. "Focus", "Short Break"). */
     val tag: String = "Focus",
+    /**
+     * true once this record has been successfully written to Firestore.
+     * Added in DB version 3 — default 0 (false) via MIGRATION_2_3.
+     */
+    val isSynced: Boolean = false,
 )
 
 // ============================================================================
@@ -72,8 +78,23 @@ interface SessionDao {
     @Insert
     suspend fun insert(session: SessionEntity)
 
+    /**
+     * Insert a session and silently ignore duplicates (primary-key conflict).
+     * Used during cloud restore so we never overwrite local data.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfNotExists(session: SessionEntity)
+
     @Query("DELETE FROM sessions")
     suspend fun clearAll()
+
+    /** Returns all sessions where isSynced = 0 (false). */
+    @Query("SELECT * FROM sessions WHERE isSynced = 0")
+    suspend fun getUnsyncedSessions(): List<SessionEntity>
+
+    /** Marks a single session as synced. */
+    @Query("UPDATE sessions SET isSynced = 1 WHERE id = :id")
+    suspend fun markSynced(id: Int)
 
     // ── Reads (Flow — Room emits on every relevant table change) ─────────────
 
@@ -192,6 +213,19 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+/**
+ * Version 2 → 3: adds the [SessionEntity.isSynced] column used for
+ * Firestore cloud-backup bookkeeping.
+ * DEFAULT 0 = false so existing rows are treated as unsynced.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE sessions ADD COLUMN isSynced INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
 // ============================================================================
 // Database
 // ============================================================================
@@ -202,10 +236,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
  * Migrations:
  *   Version 1 → initial schema (sessions table).
  *   Version 2 → adds tasks table.
+ *   Version 3 → adds isSynced column to sessions.
  */
 @Database(
     entities     = [SessionEntity::class, TaskEntity::class],
-    version      = 2,
+    version      = 3,
     exportSchema = false,
 )
 abstract class FocusDatabase : RoomDatabase() {

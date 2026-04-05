@@ -10,21 +10,31 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.preference.PreferenceManager
+import com.focusfirst.analytics.TokiAnalytics
 import com.focusfirst.data.SettingsRepository
 import com.focusfirst.data.db.DailySummary
 import com.focusfirst.data.db.SessionDao
 import com.focusfirst.data.db.SessionEntity
 import com.focusfirst.data.model.AmbientSound
+import com.focusfirst.data.model.AllBadges
+import com.focusfirst.data.model.Badge
 import com.focusfirst.data.model.IntervalPreset
 import com.focusfirst.data.model.TimerMode
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
+import com.focusfirst.data.remote.FirestoreRepository
+import com.focusfirst.data.repository.FocusGuardRepository
+import com.focusfirst.service.FocusGuardAccessibilityService
 import com.focusfirst.service.SoundManager
 import com.focusfirst.service.TimerAlarmWorker
 import com.focusfirst.service.TimerForegroundService
 import com.focusfirst.service.cancelAlarm
 import com.focusfirst.service.scheduleAlarm
+import com.focusfirst.util.BadgeEvaluator
 import com.focusfirst.util.DndManager
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +43,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -63,6 +74,8 @@ class TimerViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val soundManager: SoundManager,
     private val dndManager: DndManager,
+    private val focusGuardRepository: FocusGuardRepository,
+    private val firestoreRepository: FirestoreRepository,
 ) : ViewModel() {
 
     // ── LocalBroadcastManager ─────────────────────────────────────────────────
@@ -95,6 +108,10 @@ class TimerViewModel @Inject constructor(
     /** Emits Unit each time a FOCUS phase (Pomodoro or Flow) completes successfully. */
     private val _focusSessionCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val focusSessionCompleted: SharedFlow<Unit> = _focusSessionCompleted.asSharedFlow()
+
+    /** Emits list of newly unlocked badges after a session completes. */
+    private val _newBadges = MutableSharedFlow<List<Badge>>(extraBufferCapacity = 4)
+    val newBadges: SharedFlow<List<Badge>> = _newBadges.asSharedFlow()
 
     val todayCount: StateFlow<Int> = sessionDao
         .observeTodayCount(todayStartMs())
@@ -180,6 +197,14 @@ class TimerViewModel @Inject constructor(
             initialValue = false,
         )
 
+    /** Whether the user has an active Pro purchase. Used to gate auto-sync. */
+    val isPro: StateFlow<Boolean> = settingsRepository.isPro
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.Eagerly,
+            initialValue = false,
+        )
+
     // ========================================================================
     // Private session-tracking fields
     // ========================================================================
@@ -242,6 +267,7 @@ class TimerViewModel @Inject constructor(
             )
         }
 
+        setFocusGuardActive(true, durationSeconds)
         TimerAlarmWorker.resetCompletionFlag(application)
         scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)
 
@@ -251,6 +277,16 @@ class TimerViewModel @Inject constructor(
         )
 
         startSoundAndDnd()
+
+        // Analytics
+        TokiAnalytics.logSessionStarted(
+            durationMinutes = durationSeconds / 60,
+            soundEnabled    = ambientSound.value != AmbientSound.NONE,
+            dndEnabled      = dndEnabled.value,
+            hasTask         = false,
+        )
+        Firebase.crashlytics.log("Timer started: $durationSeconds seconds")
+
         Log.d(TAG, "start preset=$preset duration=${durationSeconds}s")
     }
 
@@ -273,6 +309,7 @@ class TimerViewModel @Inject constructor(
             )
         }
 
+        setFocusGuardActive(true, 0)
         // No WorkManager alarm for Flow — the user decides when to stop.
         ContextCompat.startForegroundService(
             application,
@@ -321,23 +358,42 @@ class TimerViewModel @Inject constructor(
                         )
                     }.onSuccess {
                         _focusSessionCompleted.tryEmit(Unit)
+                        evaluateBadgesAfterSave()
+                        autoSyncIfPro()
+                        TokiAnalytics.logSessionCompleted(
+                            durationMinutes = elapsed / 60,
+                            sessionNumber   = totalCompleted.value,
+                        )
                         Log.d(TAG, "Flow session saved: ${elapsed}s")
                     }
                 }
+            } else if (elapsed > 0) {
+                // Short flow session treated as abandoned
+                TokiAnalytics.logSessionAbandoned(
+                    durationMinutes = 0,
+                    elapsedMinutes  = elapsed / 60,
+                )
             }
         } else if (sessionStartMs > 0L) {
             val elapsedSeconds = ((System.currentTimeMillis() - sessionStartMs) / 1000L).toInt()
             if (elapsedSeconds > 30) {
+                val totalDuration = state.totalSeconds
                 saveSession(wasCompleted = false, phase = state.phase)
+                TokiAnalytics.logSessionAbandoned(
+                    durationMinutes = totalDuration / 60,
+                    elapsedMinutes  = elapsedSeconds / 60,
+                )
             }
         }
 
         sessionStartMs = 0L
+        setFocusGuardActive(false, 0)
         soundManager.stop()
         dndManager.disableDnd()
         cancelAlarm(application)
         sendServiceAction(TimerForegroundService.ACTION_STOP)
         _timerState.value = TimerState()
+        Firebase.crashlytics.log("Timer stopped")
         Log.d(TAG, "stop")
     }
 
@@ -452,9 +508,11 @@ class TimerViewModel @Inject constructor(
 
         if (nextPhase == TimerPhase.FOCUS) {
             startSoundAndDnd()
+            setFocusGuardActive(true, nextDurationSeconds)
         } else {
             soundManager.pause()
             dndManager.disableDnd()
+            setFocusGuardActive(false, 0)
         }
 
         val nextDurationSeconds = when (nextPhase) {
@@ -518,7 +576,17 @@ class TimerViewModel @Inject constructor(
                     )
                 )
             }.onFailure { Log.e(TAG, "Failed to save session", it) }
-             .onSuccess { Log.d(TAG, "Saved session tag=$tag completed=$wasCompleted duration=${durationSeconds}s") }
+             .onSuccess {
+                 Log.d(TAG, "Saved session tag=$tag completed=$wasCompleted duration=${durationSeconds}s")
+                 if (wasCompleted && phase == TimerPhase.FOCUS) {
+                     evaluateBadgesAfterSave()
+                     autoSyncIfPro()
+                     TokiAnalytics.logSessionCompleted(
+                         durationMinutes = durationSeconds / 60,
+                         sessionNumber   = totalCompleted.value,
+                     )
+                 }
+             }
         }
     }
 
@@ -530,6 +598,101 @@ class TimerViewModel @Inject constructor(
         val sound = ambientSound.value
         if (sound != AmbientSound.NONE) soundManager.play(sound, ambientVolume.value)
         if (dndEnabled.value && dndManager.isDndPermissionGranted()) dndManager.enableDnd()
+    }
+
+    // ── Focus Guard helpers ───────────────────────────────────────────────────
+
+    private fun setFocusGuardActive(active: Boolean, remainingSeconds: Int) {
+        PreferenceManager.getDefaultSharedPreferences(application)
+            .edit()
+            .putBoolean(FocusGuardAccessibilityService.PREF_FOCUS_GUARD_ACTIVE, active)
+            .putInt(FocusGuardAccessibilityService.PREF_REMAINING_SECONDS, remainingSeconds)
+            .apply()
+    }
+
+    // ── Badge evaluation ──────────────────────────────────────────────────────
+
+    private fun evaluateBadgesAfterSave() {
+        viewModelScope.launch {
+            runCatching {
+                val sessions        = sessionDao.observeAll().first()
+                val streak          = streakDays.value
+                val alreadyUnlocked = settingsRepository.unlockedBadges.first()
+                val newIds          = BadgeEvaluator.evaluate(sessions, streak, alreadyUnlocked)
+                if (newIds.isNotEmpty()) {
+                    settingsRepository.unlockBadges(newIds.toSet())
+                    val newBadgeObjects = newIds.mapNotNull { AllBadges.byId[it] }
+                    _newBadges.tryEmit(newBadgeObjects)
+                    Log.d(TAG, "Unlocked badges: $newIds")
+                }
+            }.onFailure { Log.e(TAG, "Badge evaluation failed", it) }
+        }
+    }
+
+    // ── Cloud auto-sync ───────────────────────────────────────────────────
+
+    /** Automatically syncs unsynced sessions after a completed session. Pro only. */
+    private fun autoSyncIfPro() {
+        if (!isPro.value) return
+        viewModelScope.launch {
+            runCatching {
+                firestoreRepository.ensureAuthenticated()
+                firestoreRepository.syncSessionsToCloud()
+            }.onFailure { e ->
+                Firebase.crashlytics.recordException(e)
+                Log.e(TAG, "Auto-sync failed: ${e.message}")
+            }
+        }
+    }
+
+    // ── Deep link entry point ─────────────────────────────────────────────────
+
+    /**
+     * Start a focus session from a deep link or home-screen shortcut.
+     * Selects the closest matching preset, or uses a custom duration.
+     */
+    fun startFromDeepLink(durationMinutes: Int, taskName: String?) {
+        // If the timer is already running, do nothing (avoid interrupt)
+        val state = _timerState.value
+        if (state.isRunning) return
+
+        // Find the closest built-in preset or fall back to the default 25-min one
+        val matchingPreset = IntervalPreset.entries.firstOrNull {
+            it.focusMinutes == durationMinutes
+        }
+
+        if (matchingPreset != null) {
+            start(matchingPreset)
+        } else {
+            // Custom duration — start with the default preset but override the duration
+            val durationSeconds = durationMinutes * 60
+            sessionStartMs = System.currentTimeMillis()
+            val preset = _timerState.value.preset
+
+            _timerState.update { current ->
+                current.copy(
+                    phase            = TimerPhase.FOCUS,
+                    preset           = preset,
+                    timerMode        = TimerMode.POMODORO,
+                    totalSeconds     = durationSeconds,
+                    remainingSeconds = durationSeconds,
+                    elapsedSeconds   = 0,
+                    isRunning        = true,
+                    isPaused         = false,
+                )
+            }
+
+            setFocusGuardActive(true, durationSeconds)
+            TimerAlarmWorker.resetCompletionFlag(application)
+            scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)
+            ContextCompat.startForegroundService(
+                application,
+                TimerForegroundService.buildStartIntent(application, durationSeconds, TimerPhase.FOCUS),
+            )
+            startSoundAndDnd()
+        }
+
+        Log.d(TAG, "startFromDeepLink duration=${durationMinutes}m task=$taskName")
     }
 
     private fun sendServiceAction(action: String) {
@@ -547,6 +710,12 @@ class TimerViewModel @Inject constructor(
         localBroadcastManager.unregisterReceiver(timerReceiver)
         soundManager.release()
         dndManager.disableDnd()
+        // Snapshot user properties so the final state is recorded before ViewModel dies
+        TokiAnalytics.setUserProperties(
+            isPro         = isPro.value,
+            totalSessions = totalCompleted.value,
+            streakDays    = streakDays.value,
+        )
         Log.d(TAG, "onCleared: receiver unregistered, sound + DND released")
         super.onCleared()
     }

@@ -22,16 +22,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Vibration
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -65,6 +70,8 @@ import com.focusfirst.ui.theme.LocalFocusDarkTheme
 import com.focusfirst.util.DndManager
 import com.focusfirst.util.DndManagerEntryPoint
 import com.focusfirst.viewmodel.SettingsViewModel
+import com.focusfirst.viewmodel.SyncState
+import com.focusfirst.viewmodel.SyncViewModel
 import dagger.hilt.android.EntryPointAccessors
 import kotlin.math.roundToInt
 
@@ -76,6 +83,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     settingsViewModel:    SettingsViewModel = hiltViewModel(),
     billingViewModel:     BillingViewModel  = hiltViewModel(),
+    syncViewModel:        SyncViewModel     = hiltViewModel(),
     onNavigateToLicenses: () -> Unit        = {},
 ) {
     val context = LocalContext.current
@@ -101,13 +109,20 @@ fun SettingsScreen(
     val ambientSound    by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
     val ambientVolume   by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
 
-    var showSoundSheet by remember { mutableStateOf(false) }
+    var showSoundSheet  by remember { mutableStateOf(false) }
+    var showFocusGuard  by remember { mutableStateOf(false) }
 
     // Checked once per composition — user must navigate away/back to refresh after granting
     val dndPermissionGranted by remember { mutableStateOf(dndManager.isDndPermissionGranted()) }
 
     val scheme = MaterialTheme.colorScheme
     val dark   = LocalFocusDarkTheme.current
+
+    // Focus Guard screen navigation — shown as an overlay
+    if (showFocusGuard) {
+        FocusGuardScreen(onBack = { showFocusGuard = false })
+        return
+    }
 
     Column(
         modifier            = Modifier
@@ -131,7 +146,27 @@ fun SettingsScreen(
                 onUpgrade = { billingViewModel.openUpgradeSheet() },
             )
 
+            Spacer(Modifier.height(12.dp))
+
+            // ── Focus Guard entry ─────────────────────────────────────────
+            SettingsSectionCard(dark = dark) {
+                PlaceholderChevronRow(
+                    icon     = Icons.Outlined.Lock,
+                    iconTint = Color(0xFF6C63FF),
+                    title    = "Focus Guard",
+                    subtitle = if (isPro) "Block distracting apps during sessions"
+                               else "Pro — Block apps during focus sessions",
+                    proBadge = !isPro,
+                    scheme   = scheme,
+                    onClick  = {
+                        if (isPro) showFocusGuard = true
+                        else billingViewModel.openUpgradeSheet()
+                    },
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
+
 
             SectionLabel("TIMER", color = scheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
@@ -358,6 +393,96 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(20.dp))
+
+            val syncState = syncViewModel.syncState
+            val isSyncPro by syncViewModel.isPro.collectAsStateWithLifecycle()
+
+            if (isSyncPro) {
+                SectionLabel("CLOUD SYNC", color = scheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color    = if (dark) Color.White.copy(alpha = 0.07f) else scheme.surfaceVariant.copy(alpha = 0.2f),
+                    shape    = SectionShape,
+                    border   = if (dark) androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                               else androidx.compose.foundation.BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.35f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Row(
+                            modifier              = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment     = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Backup sessions",
+                                    fontSize = 15.sp,
+                                    color    = scheme.onSurface
+                                )
+                                Text(
+                                    when (syncState) {
+                                        is SyncState.Idle    -> "Sync to cloud"
+                                        is SyncState.Syncing -> "Syncing..."
+                                        is SyncState.Success -> "Synced successfully ✓"
+                                        is SyncState.Error   -> "Sync failed — tap retry"
+                                    },
+                                    fontSize = 13.sp,
+                                    color    = when (syncState) {
+                                        is SyncState.Success -> Color(0xFF1A9E5F)
+                                        is SyncState.Error   -> Color(0xFFE84B1A)
+                                        else                 -> scheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+
+                            if (syncState is SyncState.Syncing) {
+                                CircularProgressIndicator(
+                                    modifier    = Modifier.size(24.dp).padding(end = 8.dp),
+                                    strokeWidth = 2.dp,
+                                    color       = scheme.primary
+                                )
+                            } else {
+                                Button(
+                                    onClick = { syncViewModel.syncNow() },
+                                    colors  = ButtonDefaults.buttonColors(
+                                        containerColor = scheme.primary,
+                                        contentColor   = scheme.onPrimary
+                                    )
+                                ) {
+                                    Text("Sync", fontSize = 13.sp)
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color    = scheme.onSurface.copy(alpha = 0.06f)
+                        )
+
+                        TextButton(onClick = { syncViewModel.restoreFromCloud() }) {
+                            Text(
+                                "Restore from cloud",
+                                color    = scheme.onSurface.copy(alpha = 0.6f),
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Your data is stored anonymously. No account required.",
+                            fontSize = 11.sp,
+                            color    = scheme.onSurface.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+            }
 
             SectionLabel("ABOUT", color = scheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))

@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -106,4 +108,19 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Firebase BOM — controls all Firebase versions
+    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
+    
+    // Analytics
+    implementation("com.google.firebase:firebase-analytics")
+    
+    // Crashlytics
+    implementation("com.google.firebase:firebase-crashlytics")
+    
+    // Firestore (for cloud sync)
+    implementation("com.google.firebase:firebase-firestore")
+    
+    // Auth (anonymous auth for sync)
+    implementation("com.google.firebase:firebase-auth")
 }

@@ -6,6 +6,10 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.focusfirst.BuildConfig
+import com.google.firebase.analytics.ktx.analytics
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -22,6 +26,11 @@ class FocusFirstApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+
+        // Verify Firebase initialized
+        Firebase.analytics.logEvent("app_opened", null)
+        Firebase.crashlytics.setCrashlyticsCollectionEnabled(true)
+        Firebase.crashlytics.setCustomKey("app_version", BuildConfig.VERSION_NAME)
     }
 
     private fun createNotificationChannels() {

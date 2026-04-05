@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1072659092681",
+    "project_id": "toki-0001",
+    "storage_bucket": "toki-0001.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072659092681:android:8820bf0a064cdfc636e918",
+        "android_client_info": {
+          "package_name": "com.focusfirst"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtFXPH-mirlY_qqkN58pEnOJ0NCscaSZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

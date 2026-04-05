@@ -12,6 +12,7 @@ import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.data.model.PlanetSkin
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 val Context.focusFirstSettingsDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -50,6 +51,15 @@ class SettingsRepository(
         val KEY_AMBIENT_VOLUME = floatPreferencesKey("ambient_volume")
         val KEY_DND_ENABLED  = booleanPreferencesKey("dnd_enabled")
         val KEY_EULA_ACCEPTED = booleanPreferencesKey("eula_accepted")
+
+        // Badge storage
+        /** Pipe-separated list of unlocked badge IDs, e.g. "first_step|on_a_roll" */
+        val KEY_UNLOCKED_BADGES = stringPreferencesKey("unlocked_badges")
+        /**
+         * Serialised map of badgeId -> epochMillis, stored as "id:ms|id:ms|..."
+         * This lets us show "Unlocked on …" without a separate entity.
+         */
+        val KEY_BADGE_TIMES = stringPreferencesKey("badge_unlock_times")
     }
 
     val focusMinutes: Flow<Int> = dataStore.data.map { it[KEY_FOCUS_MINUTES] ?: 25 }
@@ -101,6 +111,23 @@ class SettingsRepository(
 
     val eulaAccepted: Flow<Boolean> = dataStore.data.map { it[KEY_EULA_ACCEPTED] ?: false }
 
+    /** Set of badge IDs that the user has already unlocked. */
+    val unlockedBadges: Flow<Set<String>> = dataStore.data.map { prefs ->
+        val raw = prefs[KEY_UNLOCKED_BADGES] ?: ""
+        if (raw.isBlank()) emptySet() else raw.split("|").toSet()
+    }
+
+    /** Map of badgeId -> epochMillis when it was first unlocked. */
+    val unlockedBadgeTimes: Flow<Map<String, Long>> = dataStore.data.map { prefs ->
+        val raw = prefs[KEY_BADGE_TIMES] ?: ""
+        if (raw.isBlank()) return@map emptyMap()
+        raw.split("|").mapNotNull { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) parts[0] to (parts[1].toLongOrNull() ?: return@mapNotNull null)
+            else null
+        }.toMap()
+    }
+
     suspend fun updatePlanetSkin(skin: PlanetSkin) =
         update(KEY_PLANET_SKIN, skin.name)
 
@@ -118,6 +145,38 @@ class SettingsRepository(
 
     suspend fun acceptEula() {
         dataStore.edit { it[KEY_EULA_ACCEPTED] = true }
+    }
+
+    /**
+     * Persist newly unlocked badge IDs (merged with any already-stored).
+     * Also records the current timestamp for each new badge.
+     */
+    suspend fun unlockBadges(newIds: Set<String>) {
+        if (newIds.isEmpty()) return
+        val now = System.currentTimeMillis()
+        dataStore.edit { prefs ->
+            // Merge into existing set
+            val existing = run {
+                val raw = prefs[KEY_UNLOCKED_BADGES] ?: ""
+                if (raw.isBlank()) emptySet() else raw.split("|").toSet()
+            }
+            prefs[KEY_UNLOCKED_BADGES] = (existing + newIds).joinToString("|")
+
+            // Merge timestamps (only record first-unlock time)
+            val existingTimes = run {
+                val raw = prefs[KEY_BADGE_TIMES] ?: ""
+                if (raw.isBlank()) mutableMapOf()
+                else raw.split("|").mapNotNull { entry ->
+                    val parts = entry.split(":")
+                    if (parts.size == 2) parts[0] to (parts[1].toLongOrNull() ?: return@mapNotNull null)
+                    else null
+                }.toMap().toMutableMap()
+            }
+            for (id in newIds) {
+                if (id !in existingTimes) existingTimes[id] = now
+            }
+            prefs[KEY_BADGE_TIMES] = existingTimes.entries.joinToString("|") { (k, v) -> "$k:$v" }
+        }
     }
 
     suspend fun <T> update(key: Preferences.Key<T>, value: T) {

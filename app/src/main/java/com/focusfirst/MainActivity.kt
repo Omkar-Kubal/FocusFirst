@@ -7,10 +7,12 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -49,6 +51,7 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.focusfirst.analytics.TokiAnalytics
 import com.focusfirst.billing.BillingViewModel
 import com.focusfirst.billing.ProUpgradeSheet
 import com.focusfirst.data.SettingsRepository
@@ -59,6 +62,7 @@ import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
 import com.focusfirst.ui.theme.FocusFirstTheme
 import com.focusfirst.viewmodel.SettingsViewModel
+import com.focusfirst.viewmodel.TimerViewModel
 import com.focusfirst.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
@@ -92,6 +96,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
 
+    /** Provides access to TimerViewModel for deep link dispatch before Compose is ready. */
+    private val timerViewModelByDelegate: com.focusfirst.viewmodel.TimerViewModel by viewModels()
+
     private val showNotificationRationale = mutableStateOf(false)
 
     private val requestNotificationPermission =
@@ -108,6 +115,9 @@ class MainActivity : ComponentActivity() {
 
         requestPostNotificationsPermissionIfNeeded()
 
+        // Handle deep link if activity was cold-launched via URI
+        intent?.let { handleDeepLink(it) }
+
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val billingViewModel: BillingViewModel = hiltViewModel()
@@ -121,6 +131,11 @@ class MainActivity : ComponentActivity() {
             }
 
             var selectedTab by rememberSaveable { mutableStateOf(Tab.HOME) }
+
+            // Log each tab switch to Firebase Analytics
+            LaunchedEffect(selectedTab) {
+                TokiAnalytics.logTabViewed(selectedTab.name)
+            }
 
             val eulaAccepted by settingsViewModel.eulaAccepted
                 .collectAsStateWithLifecycle(false)
@@ -179,6 +194,48 @@ class MainActivity : ComponentActivity() {
                 )
                 requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+    }
+
+    // ── Deep link handling ────────────────────────────────────────────────────
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    /**
+     * Dispatch incoming toki:// URIs to the TimerViewModel.
+     *
+     * Supported URIs:
+     *   toki://timer/start              — start 25-min session
+     *   toki://timer/start?duration=15  — start custom duration
+     *   toki://timer/start?task=Physics — start with task label
+     *   toki://timer/stop               — stop current session
+     *   toki://timer/pause              — pause
+     *   toki://timer/resume             — resume
+     */
+    private fun handleDeepLink(intent: Intent) {
+        val uri = intent.data ?: return
+        if (uri.scheme != "toki") return
+
+        Log.d("MainActivity", "handleDeepLink: $uri")
+
+        when (uri.host) {
+            "timer" -> {
+                when (uri.path) {
+                    "/start" -> {
+                        val duration = uri.getQueryParameter("duration")?.toIntOrNull() ?: 25
+                        val task     = uri.getQueryParameter("task")
+                        timerViewModelByDelegate.startFromDeepLink(duration, task)
+                    }
+                    "/stop"   -> timerViewModelByDelegate.stop()
+                    "/pause"  -> timerViewModelByDelegate.pause()
+                    "/resume" -> timerViewModelByDelegate.resume()
+                    else -> Log.w("MainActivity", "Unknown deep link path: ${uri.path}")
+                }
+            }
+            else -> Log.w("MainActivity", "Unknown deep link host: ${uri.host}")
         }
     }
 }

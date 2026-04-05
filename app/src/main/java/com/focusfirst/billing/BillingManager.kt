@@ -17,7 +17,10 @@ import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.acknowledgePurchase
 import com.android.billingclient.api.queryProductDetails
 import com.android.billingclient.api.queryPurchasesAsync
+import com.focusfirst.analytics.TokiAnalytics
 import com.focusfirst.data.SettingsRepository
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,12 +73,12 @@ class BillingManager @Inject constructor(
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
                 Log.d(TAG, "User cancelled billing flow")
+                TokiAnalytics.logUpgradeCancelled()
             }
             else -> {
-                Log.e(
-                    TAG,
-                    "Billing error ${billingResult.responseCode}: ${billingResult.debugMessage}",
-                )
+                val msg = "Billing error ${billingResult.responseCode}: ${billingResult.debugMessage}"
+                Log.e(TAG, msg)
+                Firebase.crashlytics.log(msg)
             }
         }
     }
@@ -173,6 +176,8 @@ class BillingManager @Inject constructor(
      * @return [BillingResult] — check [BillingResult.responseCode] == OK for a successful launch.
      */
     fun launchBillingFlow(activity: Activity): BillingResult {
+        TokiAnalytics.logUpgradeScreenViewed()
+
         val details = cachedProductDetails
             ?: return BillingResult.newBuilder()
                 .setResponseCode(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE)
@@ -222,6 +227,7 @@ class BillingManager @Inject constructor(
         _isPro.value = true
         _billingState.value = BillingState.PURCHASED
         settingsRepository.update(SettingsRepository.KEY_PRO_UNLOCKED, true)
+        TokiAnalytics.logUpgradePurchased()
         Log.i(TAG, "Pro unlocked and persisted")
     }
 
