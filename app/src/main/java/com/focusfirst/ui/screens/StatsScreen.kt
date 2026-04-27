@@ -40,8 +40,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.grayscale
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -64,6 +68,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
+
+// Backport of Modifier.grayscale() (added in Compose 1.8, not in BOM 2024.12.01)
+private fun Modifier.grayscale(): Modifier = drawWithContent {
+    val matrix = ColorMatrix().apply { setToSaturation(0f) }
+    val paint  = Paint().apply { colorFilter = ColorFilter.colorMatrix(matrix) }
+    drawContext.canvas.saveLayer(Rect(0f, 0f, size.width, size.height), paint)
+    drawContent()
+    drawContext.canvas.restore()
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StatsScreen

@@ -3,10 +3,10 @@ package com.focusfirst.data.remote
 import android.util.Log
 import com.focusfirst.data.db.SessionDao
 import com.focusfirst.data.db.SessionEntity
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.crashlytics.crashlytics
+import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton

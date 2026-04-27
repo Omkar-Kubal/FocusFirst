@@ -9,9 +9,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import android.content.Intent
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -79,7 +81,8 @@ private fun TokiWidgetContent() {
     val seconds    = remainingSeconds % 60
     val timeString = "%02d:%02d".format(minutes, seconds)
 
-    val openApp = actionStartActivity<MainActivity>()
+    val context = LocalContext.current
+    val openApp = actionStartActivity(Intent(context, MainActivity::class.java))
 
     Box(
         modifier         = GlanceModifier

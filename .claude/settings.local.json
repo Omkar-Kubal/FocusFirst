@@ -16,7 +16,12 @@
       "Read(//c/Program Files/Android/Android Studio/jre/bin/**)",
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew.bat installDebug)",
       "Bash(find C:UsersuserStudioProjectsFocusFirstappsrcmainjavacomfocusfirst -name *.kt)",
-      "Bash(find C:UsersuserStudioProjectsFocusFirstappsrcmainres -name *.xml)"
+      "Bash(find C:UsersuserStudioProjectsFocusFirstappsrcmainres -name *.xml)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:mvnrepository.com)",
+      "WebFetch(domain:central.sonatype.com)",
+      "WebFetch(domain:medium.com)"
     ]
   }
 }

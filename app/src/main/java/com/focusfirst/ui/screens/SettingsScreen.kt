@@ -62,8 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focusfirst.BuildConfig
 import com.focusfirst.R
 import com.focusfirst.billing.BillingViewModel
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.focusfirst.billing.ProBadge
 import com.focusfirst.data.model.AmbientSound
 import com.focusfirst.ui.components.SoundSelectorSheet

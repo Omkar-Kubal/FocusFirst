@@ -8,8 +8,8 @@ import android.media.MediaPlayer
 import android.os.Build
 import android.util.Log
 import com.focusfirst.data.model.AmbientSound
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 
 class SoundManager(private val context: Context) {
 

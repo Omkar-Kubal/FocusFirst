@@ -5,13 +5,13 @@ import androidx.room.Database
 import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
-import androidx.room.Migration
 import androidx.room.OnConflictStrategy
+import androidx.room.migration.Migration
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Update
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
 import com.focusfirst.data.model.TaskEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -196,8 +196,8 @@ interface TaskDao {
 // ============================================================================
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
             """
             CREATE TABLE IF NOT EXISTS `tasks` (
                 `id`                INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -209,7 +209,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                 `tag`               TEXT    NOT NULL DEFAULT 'Focus'
             )
             """.trimIndent()
-        )
+        ).use { it.step() }
     }
 }
 
@@ -219,10 +219,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
  * DEFAULT 0 = false so existing rows are treated as unsynced.
  */
 val MIGRATION_2_3 = object : Migration(2, 3) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
             "ALTER TABLE sessions ADD COLUMN isSynced INTEGER NOT NULL DEFAULT 0"
-        )
+        ).use { it.step() }
     }
 }
 

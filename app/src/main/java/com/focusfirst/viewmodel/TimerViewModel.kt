@@ -33,8 +33,8 @@ import com.focusfirst.service.cancelAlarm
 import com.focusfirst.service.scheduleAlarm
 import com.focusfirst.util.BadgeEvaluator
 import com.focusfirst.util.DndManager
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow

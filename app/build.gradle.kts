@@ -90,6 +90,9 @@ dependencies {
     // ── DataStore ─────────────────────────────────────────────────────────
     implementation(libs.androidx.datastore.preferences)
 
+    // ── Preference (for PreferenceManager cross-process SharedPrefs) ──────
+    implementation("androidx.preference:preference-ktx:1.2.1")
+
     // ── Coroutines ────────────────────────────────────────────────────────
     implementation(libs.kotlinx.coroutines.android)
 

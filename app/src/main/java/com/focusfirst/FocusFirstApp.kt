@@ -8,9 +8,9 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.focusfirst.BuildConfig
 import com.focusfirst.billing.BillingManager
-import com.google.firebase.analytics.ktx.analytics
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.analytics.analytics
+import com.google.firebase.crashlytics.crashlytics
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
