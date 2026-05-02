@@ -70,6 +70,8 @@ fun ProUpgradeSheet(
     val activity      = LocalContext.current as? Activity
     val isPro         by billingViewModel.isPro.collectAsStateWithLifecycle()
     val purchaseError by billingViewModel.purchaseError.collectAsStateWithLifecycle()
+    val proPrice      by billingViewModel.proPrice.collectAsStateWithLifecycle()
+    val productReady  by billingViewModel.isProductReady.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
@@ -132,8 +134,10 @@ fun ProUpgradeSheet(
                 } else {
                     UpgradeContent(
                         isLoading      = isLoading,
+                        proPrice       = proPrice,
+                        productReady   = productReady,
                         onBuyClick     = {
-                            if (activity != null && !isLoading) {
+                            if (activity != null && productReady && !isLoading) {
                                 isLoading = true
                                 billingViewModel.launchPurchase(activity)
                             }
@@ -210,6 +214,8 @@ private fun PurchasedContent(onDismiss: () -> Unit) {
 @Composable
 private fun UpgradeContent(
     isLoading:      Boolean,
+    proPrice:       String?,
+    productReady:   Boolean,
     onBuyClick:     () -> Unit,
     onRestoreClick: () -> Unit,
     onDismissClick: () -> Unit,
@@ -224,7 +230,7 @@ private fun UpgradeContent(
     )
     Spacer(Modifier.height(4.dp))
     Text(
-        text     = "One-time purchase. No subscription. Ever.",
+        text     = "Monthly subscription. Cancel anytime in Google Play.",
         fontSize = 13.sp,
         color    = Color.White.copy(alpha = 0.5f),
     )
@@ -238,7 +244,7 @@ private fun UpgradeContent(
             .padding(horizontal = 28.dp, vertical = 12.dp),
     ) {
         Text(
-            text       = "₹149",
+            text       = proPrice ?: "Loading...",
             fontSize   = 36.sp,
             fontWeight = FontWeight.Bold,
             color      = Color.White,
@@ -273,6 +279,7 @@ private fun UpgradeContent(
 
     Button(
         onClick  = onBuyClick,
+        enabled  = productReady && !isLoading,
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
@@ -290,7 +297,7 @@ private fun UpgradeContent(
             )
         } else {
             Text(
-                text       = "Unlock Pro — ₹149",
+                text       = proPrice?.let { "Start Pro - $it / month" } ?: "Loading price...",
                 fontSize   = 16.sp,
                 fontWeight = FontWeight.SemiBold,
             )

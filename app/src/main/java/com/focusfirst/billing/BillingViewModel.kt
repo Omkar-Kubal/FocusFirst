@@ -23,6 +23,12 @@ class BillingViewModel @Inject constructor(
     /** Current state of the billing client connection + purchase lifecycle. */
     val billingState: StateFlow<BillingState> = billingManager.billingState
 
+    /** Localized price fetched from Google Play for the active Toki Pro base plan. */
+    val proPrice: StateFlow<String?> = billingManager.proPrice
+
+    /** True when subscription product details and offer token are ready for checkout. */
+    val isProductReady: StateFlow<Boolean> = billingManager.isProductReady
+
     /** Emits Unit when the user cancels the billing flow — used to reset loading spinners. */
     val billingCancelled: SharedFlow<Unit> = billingManager.billingCancelled
 

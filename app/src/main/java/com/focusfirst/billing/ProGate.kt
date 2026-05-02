@@ -41,6 +41,7 @@ fun ProGate(
     content: @Composable () -> Unit,
 ) {
     val isPro by billingViewModel.isPro.collectAsStateWithLifecycle()
+    val proPrice by billingViewModel.proPrice.collectAsStateWithLifecycle()
 
     if (isPro) {
         content()
@@ -60,6 +61,7 @@ fun ProGate(
                     lockedContent()
                 } else {
                     LockOverlayContent(
+                        proPrice = proPrice,
                         onUnlockClick = { billingViewModel.openUpgradeSheet() },
                     )
                 }
@@ -69,7 +71,10 @@ fun ProGate(
 }
 
 @Composable
-private fun LockOverlayContent(onUnlockClick: () -> Unit) {
+private fun LockOverlayContent(
+    proPrice: String?,
+    onUnlockClick: () -> Unit,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(
             imageVector        = Icons.Outlined.Lock,
@@ -93,7 +98,7 @@ private fun LockOverlayContent(onUnlockClick: () -> Unit) {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text       = "Unlock ₹149",
+                text       = proPrice?.let { "Unlock $it / month" } ?: "Unlock Pro",
                 fontSize   = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color      = Color.Black,

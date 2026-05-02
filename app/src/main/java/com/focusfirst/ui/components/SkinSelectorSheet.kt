@@ -129,7 +129,7 @@ fun SkinSelectorSheet(
                                 color = Color.White,
                             )
                             Text(
-                                text = "₹149 once — forever",
+                                text = "Monthly Pro subscription",
                                 fontSize = 12.sp,
                                 color = Color.White.copy(alpha = 0.5f),
                             )

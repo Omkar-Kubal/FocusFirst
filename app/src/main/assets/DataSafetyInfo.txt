@@ -18,7 +18,7 @@ DATA SHARED: None
 - No analytics SDKs
 
 THIRD PARTY SERVICES:
-- Google Play Billing: Handles ₹149 Pro purchase
+- Google Play Billing: Handles Toki Pro subscription purchases
   (Google's own servers, not ours)
 - No other third party services
 

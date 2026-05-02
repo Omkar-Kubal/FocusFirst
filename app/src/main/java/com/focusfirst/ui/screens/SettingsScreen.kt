@@ -108,6 +108,7 @@ fun SettingsScreen(
     val amoledMode      by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
     val dndEnabled      by settingsViewModel.dndEnabled.collectAsStateWithLifecycle()
     val isPro           by billingViewModel.isPro.collectAsStateWithLifecycle()
+    val proPrice        by billingViewModel.proPrice.collectAsStateWithLifecycle()
     val ambientSound    by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
     val ambientVolume   by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
 
@@ -163,6 +164,7 @@ fun SettingsScreen(
 
             ProFeaturesCard(
                 isPro     = isPro,
+                proPrice  = proPrice,
                 onUpgrade = { billingViewModel.openUpgradeSheet() },
             )
 
@@ -650,6 +652,7 @@ private fun SettingsTopBar() {
 @Composable
 private fun ProFeaturesCard(
     isPro: Boolean,
+    proPrice: String?,
     onUpgrade: () -> Unit,
 ) {
     Column(
@@ -708,7 +711,9 @@ private fun ProFeaturesCard(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text     = "Sounds, analytics, AMOLED mode, export, and more — one-time ₹149.",
+                text     = proPrice?.let {
+                    "Sounds, analytics, AMOLED mode, export, and more - $it per month."
+                } ?: "Sounds, analytics, AMOLED mode, export, and more.",
                 fontSize = 13.sp,
                 color    = Color.White.copy(alpha = 0.75f),
             )
@@ -723,7 +728,7 @@ private fun ProFeaturesCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text       = "Upgrade Now — ₹149",
+                    text       = proPrice?.let { "Upgrade Now - $it / month" } ?: "Upgrade Now",
                     fontSize   = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color      = Color.Black,

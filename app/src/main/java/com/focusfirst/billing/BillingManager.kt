@@ -52,6 +52,7 @@ class BillingManager @Inject constructor(
 
     companion object {
         const val PRODUCT_ID = "toki_pro"
+        private const val BASE_PLAN_ID = "01-toki-pro"
         private const val TAG = "BillingManager"
         private const val MAX_RETRIES = 3
     }
@@ -67,8 +68,15 @@ class BillingManager @Inject constructor(
     private val _billingCancelled = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val billingCancelled = _billingCancelled.asSharedFlow()
 
+    private val _proPrice = MutableStateFlow<String?>(null)
+    val proPrice: StateFlow<String?> = _proPrice.asStateFlow()
+
+    private val _isProductReady = MutableStateFlow(false)
+    val isProductReady: StateFlow<Boolean> = _isProductReady.asStateFlow()
+
     /** Cached after the first successful query so launchBillingFlow is synchronous. */
     private var cachedProductDetails: ProductDetails? = null
+    private var cachedOfferToken: String? = null
     private var retryCount = 0
 
     // ─── Client setup ───────────────────────────────────────────────────────────
@@ -110,23 +118,26 @@ class BillingManager @Inject constructor(
 
     private fun startConnection() {
         _billingState.value = BillingState.LOADING
+        _isProductReady.value = false
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     retryCount = 0
                     _billingState.value = BillingState.READY
                     scope.launch {
-                        cachedProductDetails = queryProductDetails()
+                        cacheProductDetails(queryProductDetails())
                         restorePurchases()
                     }
                 } else {
                     Log.e(TAG, "Billing setup failed: ${billingResult.responseCode}")
+                    _isProductReady.value = false
                     _billingState.value = BillingState.UNAVAILABLE
                 }
             }
 
             override fun onBillingServiceDisconnected() {
                 Log.w(TAG, "Billing service disconnected")
+                _isProductReady.value = false
                 _billingState.value = BillingState.UNAVAILABLE
                 scheduleRetry()
             }
@@ -163,7 +174,7 @@ class BillingManager @Inject constructor(
                 listOf(
                     QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(PRODUCT_ID)
-                        .setProductType(BillingClient.ProductType.INAPP)
+                        .setProductType(BillingClient.ProductType.SUBS)
                         .build(),
                 ),
             )
@@ -174,6 +185,26 @@ class BillingManager @Inject constructor(
         } else {
             Log.e(TAG, "queryProductDetails failed: ${result.billingResult.responseCode}")
             null
+        }
+    }
+
+    private fun cacheProductDetails(productDetails: ProductDetails?) {
+        cachedProductDetails = productDetails
+
+        val offerDetails = productDetails?.subscriptionOfferDetails
+            ?.firstOrNull { it.basePlanId == BASE_PLAN_ID }
+            ?: productDetails?.subscriptionOfferDetails?.firstOrNull()
+
+        cachedOfferToken = offerDetails?.offerToken
+        _proPrice.value = offerDetails
+            ?.pricingPhases
+            ?.pricingPhaseList
+            ?.firstOrNull()
+            ?.formattedPrice
+        _isProductReady.value = productDetails != null && cachedOfferToken != null
+
+        if (productDetails != null && cachedOfferToken == null) {
+            Log.e(TAG, "No subscription offer found for product $PRODUCT_ID")
         }
     }
 
@@ -188,15 +219,28 @@ class BillingManager @Inject constructor(
      * @return [BillingResult] — check [BillingResult.responseCode] == OK for a successful launch.
      */
     fun launchBillingFlow(activity: Activity): BillingResult {
+        if (!billingClient.isReady) {
+            return BillingResult.newBuilder()
+                .setResponseCode(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED)
+                .setDebugMessage("Billing client is not connected")
+                .build()
+        }
+
         val details = cachedProductDetails
             ?: return BillingResult.newBuilder()
                 .setResponseCode(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE)
                 .setDebugMessage("Product details not loaded — billing may still be connecting")
                 .build()
+        val offerToken = cachedOfferToken
+            ?: return BillingResult.newBuilder()
+                .setResponseCode(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE)
+                .setDebugMessage("Subscription offer not loaded for base plan $BASE_PLAN_ID")
+                .build()
 
         val productDetailsParams = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
                 .setProductDetails(details)
+                .setOfferToken(offerToken)
                 .build(),
         )
         val flowParams = BillingFlowParams.newBuilder()
@@ -215,7 +259,7 @@ class BillingManager @Inject constructor(
      * - PENDING → log only, do not unlock
      */
     suspend fun handlePurchases(purchases: List<Purchase>) {
-        for (purchase in purchases) {
+        for (purchase in purchases.filter { PRODUCT_ID in it.products }) {
             when (purchase.purchaseState) {
                 Purchase.PurchaseState.PURCHASED -> {
                     if (!purchase.isAcknowledged) {
@@ -262,7 +306,7 @@ class BillingManager @Inject constructor(
     // ─── Restore purchases ──────────────────────────────────────────────────────
 
     /**
-     * Queries all owned INAPP purchases and re-processes them.
+     * Queries all owned subscription purchases and re-processes them.
      * Called automatically on every connection (app start) and from the UI "Restore" button.
      */
     suspend fun restorePurchases() {
@@ -271,7 +315,7 @@ class BillingManager @Inject constructor(
             return
         }
         val params = QueryPurchasesParams.newBuilder()
-            .setProductType(BillingClient.ProductType.INAPP)
+            .setProductType(BillingClient.ProductType.SUBS)
             .build()
         val result = billingClient.queryPurchasesAsync(params)
         if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
