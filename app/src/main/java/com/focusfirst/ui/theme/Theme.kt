@@ -10,44 +10,44 @@ import androidx.compose.ui.graphics.Color
 import com.focusfirst.data.model.TimerPhase
 
 // ============================================================================
-// Stitch-inspired light palette
+// Toki Dark palette — "The Focused Void"
 // ============================================================================
 
-private val StitchLightBackground   = Color(0xFFF2F2F7)
-private val StitchLightSurface      = Color(0xFFFFFFFF)
-private val StitchLightOnSurface    = Color(0xFF000000)
-private val StitchLightSecondary    = Color(0xFF8E8E93)
-private val StitchLightPillIdle     = Color(0xFFE5E5EA)
+private val DarkBackground        = Color(0xFF000000) // Absolute Night Black
+private val DarkSurface           = Color(0xFF111111) // Charcoal Glass
+private val DarkSurfaceHigh       = Color(0xFF1F1F1F) // Pressed Graphite
+private val DarkSurfaceVariant    = Color(0xFF242424) // Dim Graphite Track
+private val DarkPrimary           = Color(0xFFF7F7F7) // Soft White
+private val DarkOnPrimary         = Color(0xFF050505) // Pure Black Ink
+private val DarkOnSurface         = Color(0xFFF7F7F7) // Soft White
+private val DarkOnSurfaceVariant  = Color(0xFFA6A6A6) // Muted Silver Text
+private val DarkOutline           = Color(0xFF2A2A2A) // Fine Graphite Stroke
 
 // ============================================================================
-// The Focused Void — dark palette (brand)
+// Toki Light palette — "Daylight Instrument"
+// ============================================================================
+
+private val LightBackground       = Color(0xFFFFFFFF) // Pure Canvas White
+private val LightSurface          = Color(0xFFF2F2F2) // Cloud Surface
+private val LightSurfaceHigh      = Color(0xFFE4E4E4) // Pressed Ash
+private val LightSurfaceVariant   = Color(0xFFE8E8E8) // Pale Ash Track
+private val LightPrimary          = Color(0xFF0D0D0D) // Ink Black
+private val LightOnPrimary        = Color(0xFFF7F7F7) // Soft White Fill
+private val LightOnSurface        = Color(0xFF0D0D0D) // Ink Black
+private val LightOnSurfaceVariant = Color(0xFF7A7A7A) // Muted Slate Text
+private val LightOutline          = Color(0xFFD4D4D4) // Fine Ash Stroke
+
+// ============================================================================
+// The Focused Void — shared / brand colors
 // ============================================================================
 
 /**
- * Central color palette for FocusFirst — "The Focused Void" design system.
- *
- * [TomatoRed] is reserved for accent CTAs; the Pro card uses solid near-black.
+ * Colors shared across both modes, or used outside the Material3 slot system.
  */
 object FocusColors {
-
-    val TomatoRed = Color(0xFFE84B1A)
-
-    val Background              = Color(0xFF000000)
-    val SurfaceContainerLow     = Color(0xFF1B1B1B)
-    val SurfaceContainerHigh    = Color(0xFF2A2A2A)
-    val SurfaceContainerHighest = Color(0xFF353535)
-    val SurfaceBright           = Color(0xFF393939)
-
-    val OnSurface        = Color(0xFFE2E2E2)
-    val OnSurfaceVariant = Color(0xFFC6C6C6)
-
-    val OutlineVariant = Color(0xFF474747)
-
-    /** Pro / marketing card — same in light and dark. */
+    val TomatoRed         = Color(0xFFE84B1A)
+    /** Pro / marketing card — stays dark in both modes. */
     val ProCardBackground = Color(0xFF1A1A1A)
-
-    /** Preset pill idle (light mode). */
-    val LightPillIdle = StitchLightPillIdle
 }
 
 // ============================================================================
@@ -55,42 +55,39 @@ object FocusColors {
 // ============================================================================
 
 private val LightColorScheme = lightColorScheme(
-    primary                   = StitchLightOnSurface,
-    onPrimary                 = StitchLightSurface,
-    primaryContainer          = StitchLightPillIdle,
-    onPrimaryContainer        = StitchLightOnSurface,
-    background                = StitchLightBackground,
-    onBackground              = StitchLightOnSurface,
-    surface                   = StitchLightSurface,
-    onSurface                 = StitchLightOnSurface,
-    surfaceContainerLow       = StitchLightSurface,
-    surfaceContainerHigh      = StitchLightSurface,
-    surfaceVariant            = StitchLightPillIdle,
-    onSurfaceVariant          = StitchLightSecondary,
-    outline                   = StitchLightPillIdle,
-    outlineVariant            = StitchLightPillIdle,
+    primary                   = LightPrimary,
+    onPrimary                 = LightOnPrimary,
+    background                = LightBackground,
+    onBackground              = LightOnSurface,
+    surface                   = LightSurface,
+    onSurface                 = LightOnSurface,
+    surfaceContainerLow       = LightSurface,
+    surfaceContainerHigh      = LightSurfaceHigh,
+    surfaceVariant            = LightSurfaceVariant,
+    onSurfaceVariant          = LightOnSurfaceVariant,
+    outline                   = LightOutline,
+    outlineVariant            = LightOutline,
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary                   = Color.White,
-    onPrimary                 = Color.Black,
-    primaryContainer          = FocusColors.SurfaceContainerHigh,
-    onPrimaryContainer        = FocusColors.OnSurface,
-    background                = FocusColors.Background,
-    onBackground              = Color.White,
-    surface                   = FocusColors.SurfaceContainerLow,
-    onSurface                 = FocusColors.OnSurface,
-    surfaceContainerLow       = FocusColors.SurfaceContainerLow,
-    surfaceContainerHigh      = FocusColors.SurfaceContainerHigh,
-    onSurfaceVariant          = FocusColors.OnSurfaceVariant,
-    outline                   = FocusColors.OutlineVariant,
-    outlineVariant            = FocusColors.OutlineVariant,
+    primary                   = DarkPrimary,
+    onPrimary                 = DarkOnPrimary,
+    background                = DarkBackground,
+    onBackground              = DarkOnSurface,
+    surface                   = DarkSurface,
+    onSurface                 = DarkOnSurface,
+    surfaceContainerLow       = DarkSurface,
+    surfaceContainerHigh      = DarkSurfaceHigh,
+    surfaceVariant            = DarkSurfaceVariant,
+    onSurfaceVariant          = DarkOnSurfaceVariant,
+    outline                   = DarkOutline,
+    outlineVariant            = DarkOutline,
 )
 
 private val DarkAmoledColorScheme = DarkColorScheme.copy(
-    background           = Color.Black,
-    surface              = Color.Black,
-    surfaceContainerLow  = Color.Black,
+    background          = Color.Black,
+    surface             = Color.Black,
+    surfaceContainerLow = Color.Black,
 )
 
 // ============================================================================

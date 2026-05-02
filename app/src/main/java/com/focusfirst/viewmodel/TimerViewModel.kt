@@ -304,11 +304,13 @@ class TimerViewModel @Inject constructor(
 
     /**
      * Starts a Flow session — count-up timer with no automatic phase transitions.
-     * The session is saved when the user manually stops.
+     * It now uses the same fixed timer surface as Pomodoro, with a 45-minute preset.
      */
     fun startFlow() {
+        val preset = IntervalPreset.FLOW
+        val durationSeconds = preset.focusMinutes * 60
         com.focusfirst.analytics.TokiAnalytics.logSessionStarted(
-            durationMinutes = 0, // flow mode = no fixed duration
+            durationMinutes = preset.focusMinutes,
             soundEnabled = ambientSound.value != AmbientSound.NONE,
             dndEnabled = dndEnabled.value,
             hasTask = false
@@ -317,27 +319,28 @@ class TimerViewModel @Inject constructor(
 
         _timerState.update { current ->
             current.copy(
-                phase          = TimerPhase.FOCUS,
-                timerMode      = TimerMode.FLOW,
-                totalSeconds   = 0,
-                remainingSeconds = 0,
-                elapsedSeconds = 0,
-                isRunning      = true,
-                isPaused       = false,
+                phase            = TimerPhase.FOCUS,
+                preset           = preset,
+                timerMode        = TimerMode.FLOW,
+                totalSeconds     = durationSeconds,
+                remainingSeconds = durationSeconds,
+                elapsedSeconds   = 0,
+                isRunning        = true,
+                isPaused         = false,
             )
         }
 
-        setFocusGuardActive(true, 0)
+        setFocusGuardActive(true, durationSeconds)
+        TimerAlarmWorker.resetCompletionFlag(application)
+        scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)
         // No WorkManager alarm for Flow — the user decides when to stop.
         ContextCompat.startForegroundService(
             application,
-            Intent(application, TimerForegroundService::class.java).apply {
-                action = TimerForegroundService.ACTION_START_FLOW
-            },
+            TimerForegroundService.buildStartIntent(application, durationSeconds, TimerPhase.FOCUS),
         )
 
         startSoundAndDnd()
-        Log.d(TAG, "startFlow")
+        Log.d(TAG, "startFlow duration=${durationSeconds}s")
     }
 
     fun pause() {
@@ -350,7 +353,7 @@ class TimerViewModel @Inject constructor(
     fun resume() {
         Log.d(TAG, "resume")
         val state = _timerState.value
-        if (state.timerMode == TimerMode.POMODORO && state.remainingSeconds > 0) {
+        if (state.remainingSeconds > 0) {
             scheduleAlarm(application, state.remainingSeconds, state.phase)
         }
         soundManager.resume()
@@ -486,12 +489,18 @@ class TimerViewModel @Inject constructor(
                 ?: _timerState.value.phase
 
             _timerState.update { current ->
+                val tickMode =
+                    if (current.timerMode == TimerMode.FLOW && current.preset == IntervalPreset.FLOW) {
+                        TimerMode.FLOW
+                    } else {
+                        TimerMode.POMODORO
+                    }
                 current.copy(
                     remainingSeconds = remaining,
                     isRunning        = running,
                     isPaused         = !running && remaining > 0,
                     phase            = phase,
-                    timerMode        = TimerMode.POMODORO,
+                    timerMode        = tickMode,
                 )
             }
         }
@@ -508,10 +517,30 @@ class TimerViewModel @Inject constructor(
         }
 
         if (phase == TimerPhase.FOCUS) {
+            val completedFlowTimer = _timerState.value.timerMode == TimerMode.FLOW
             saveSession(wasCompleted = true, phase = phase)
             sessionCount++
             _timerState.update { it.copy(sessionsCompleted = it.sessionsCompleted + 1) }
             _focusSessionCompleted.tryEmit(Unit)
+            if (completedFlowTimer) {
+                val flowSeconds = IntervalPreset.FLOW.focusMinutes * 60
+                sessionStartMs = 0L
+                setFocusGuardActive(false, 0)
+                soundManager.stop()
+                dndManager.disableDnd()
+                cancelAlarm(application)
+                _timerState.update {
+                    TimerState(
+                        preset = IntervalPreset.FLOW,
+                        timerMode = TimerMode.FLOW,
+                        totalSeconds = flowSeconds,
+                        remainingSeconds = flowSeconds,
+                        sessionsCompleted = it.sessionsCompleted,
+                    )
+                }
+                Log.d(TAG, "onPhaseFinished flow complete")
+                return
+            }
         }
 
         val sessionsBeforeLong = sessionsBeforeLongBreakFlow.value
@@ -582,7 +611,7 @@ class TimerViewModel @Inject constructor(
         if (startMs == 0L) return
 
         val durationSeconds = ((System.currentTimeMillis() - startMs) / 1000L).toInt()
-        val tag = when (phase) {
+        val tag = if (_timerState.value.timerMode == TimerMode.FLOW) "Flow" else when (phase) {
             TimerPhase.FOCUS       -> "Focus"
             TimerPhase.SHORT_BREAK -> "Short Break"
             TimerPhase.LONG_BREAK  -> "Long Break"

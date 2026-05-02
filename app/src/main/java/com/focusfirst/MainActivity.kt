@@ -14,19 +14,27 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -42,9 +50,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -329,36 +342,62 @@ private fun FocusBottomNav(
     selectedTab:   Tab,
     onTabSelected: (Tab) -> Unit,
 ) {
-    val scheme = MaterialTheme.colorScheme
+    val cs = MaterialTheme.colorScheme
 
-    NavigationBar(
-        containerColor = scheme.surfaceContainerLow,
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(cs.background)
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 18.dp, top = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        tabs.forEach { item ->
-            val isSelected = selectedTab == item.tab
-            NavigationBarItem(
-                selected = isSelected,
-                onClick  = { onTabSelected(item.tab) },
-                icon = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .clip(RoundedCornerShape(50.dp))
+                .background(cs.surfaceContainerLow)
+                .border(1.dp, cs.outline, RoundedCornerShape(50.dp))
+                .padding(horizontal = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEach { item ->
+                val isSelected = selectedTab == item.tab
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(64.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .clickable { onTabSelected(item.tab) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
                     Icon(
-                        imageVector        = item.icon,
+                        imageVector = item.icon,
                         contentDescription = item.label,
+                        tint = if (isSelected) cs.primary else cs.onSurfaceVariant,
+                        modifier = Modifier.size(27.dp),
                     )
-                },
-                label = {
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text     = item.label,
-                        fontSize = 10.sp,
+                        text = item.label,
+                        color = if (isSelected) cs.primary else cs.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.8.sp,
                     )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor   = scheme.onSurface,
-                    unselectedIconColor = scheme.onSurfaceVariant,
-                    selectedTextColor   = scheme.onSurface,
-                    unselectedTextColor = scheme.onSurfaceVariant,
-                    indicatorColor      = scheme.primary.copy(alpha = 0.12f),
-                ),
-            )
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(26.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(if (isSelected) cs.primary else Color.Transparent),
+                    )
+                }
+            }
         }
     }
 }

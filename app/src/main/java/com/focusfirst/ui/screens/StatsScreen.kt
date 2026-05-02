@@ -9,6 +9,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -18,14 +20,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FreeBreakfast
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +57,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +70,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
+
+private val TokiGreen     = Color(0xFF1A9E5F)
+private val TokiCardShape = RoundedCornerShape(18.dp)
 
 // Backport of Modifier.grayscale() (added in Compose 1.8, not in BOM 2024.12.01)
 private fun Modifier.grayscale(): Modifier = drawWithContent {
@@ -108,25 +113,21 @@ fun StatsScreen(
 
     var showMinutes by remember { mutableStateOf(false) }
 
+    val cs = MaterialTheme.colorScheme
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(cs.background),
+        contentPadding = PaddingValues(bottom = 118.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Header
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 48.dp, bottom = 8.dp),
-            ) {
-                Text(
-                    text       = "Stats",
-                    fontSize   = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color      = Color.White,
-                )
-            }
+            StatsHeader(
+                totalCompleted = totalCompleted,
+                weeklyTotal = weeklyTotal,
+                onNavigateToSettings = onNavigateToSettings,
+            )
         }
 
         // 1 · Stat cards
@@ -144,7 +145,7 @@ fun StatsScreen(
                 Box(
                     modifier         = Modifier
                         .fillMaxWidth()
-                        .padding(40.dp),
+                        .padding(horizontal = 24.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -152,15 +153,15 @@ fun StatsScreen(
                         Spacer(Modifier.height(12.dp))
                         Text(
                             text       = "No sessions yet",
-                            fontSize   = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color      = MaterialTheme.colorScheme.onSurface,
+                            fontSize   = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color      = cs.onBackground,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text      = "Start your first focus session\nto see your stats here",
                             fontSize  = 13.sp,
-                            color     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            color     = cs.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -202,6 +203,110 @@ fun StatsScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
+private fun StatsHeader(
+    totalCompleted: Int,
+    weeklyTotal: Int,
+    onNavigateToSettings: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 46.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Stats",
+                fontSize = 34.sp,
+                lineHeight = 38.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = cs.onBackground,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "$totalCompleted total sessions / $weeklyTotal this week",
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                color = cs.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(CircleShape)
+                .border(1.dp, cs.outline, CircleShape)
+                .clickable { onNavigateToSettings() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Settings,
+                contentDescription = "Settings",
+                tint = cs.onBackground,
+                modifier = Modifier.size(27.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TokiSectionCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clip(TokiCardShape)
+            .background(cs.surfaceContainerLow)
+            .border(1.dp, cs.outline, TokiCardShape)
+            .padding(18.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun SectionTitle(
+    title: String,
+    detail: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title.uppercase(Locale.US),
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.8.sp,
+                color = cs.onSurfaceVariant,
+            )
+            if (detail != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = detail,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.onSurface,
+                )
+            }
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
 private fun StatCardsRow(
     totalCompleted: Int,
     weeklyTotal:    Int,
@@ -210,8 +315,8 @@ private fun StatCardsRow(
     Row(
         modifier              = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         StatCard(value = "$totalCompleted", label = "TOTAL",     modifier = Modifier.weight(1f))
         StatCard(value = "$weeklyTotal",    label = "THIS WEEK", modifier = Modifier.weight(1f))
@@ -231,19 +336,21 @@ private fun StatCard(
     modifier:  Modifier = Modifier,
     showFlame: Boolean  = false,
 ) {
+    val cs = MaterialTheme.colorScheme
     Surface(
         modifier = modifier,
-        color    = Color(0xFF0D0D0D),
-        shape    = RoundedCornerShape(12.dp),
-        border   = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)),
+        color    = cs.surfaceContainerLow,
+        shape    = TokiCardShape,
+        border   = BorderStroke(1.dp, cs.outline),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text       = value,
-                    fontSize   = 28.sp,
+                    fontSize   = 30.sp,
+                    lineHeight = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = Color.White,
+                    color      = cs.onSurface,
                 )
                 if (showFlame) {
                     Text(text = " 🔥", fontSize = 18.sp)
@@ -253,8 +360,8 @@ private fun StatCard(
             Text(
                 text          = label,
                 fontSize      = 9.sp,
-                color         = Color.White.copy(alpha = 0.35f),
-                letterSpacing = 0.12.em,
+                color         = cs.onSurfaceVariant,
+                letterSpacing = 1.2.sp,
             )
         }
     }
@@ -274,31 +381,19 @@ private fun FocusHeatmapSection(allSessions: List<SessionEntity>) {
     val completedCount = allSessions.count { it.wasCompleted }
     val year           = Calendar.getInstance().get(Calendar.YEAR)
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 8.dp, bottom = 24.dp),
-    ) {
-        Text(
-            text       = "Focus history",
-            fontSize   = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color      = Color.White,
+    TokiSectionCard {
+        SectionTitle(
+            title = "Focus history",
+            detail = "$completedCount sessions in $year",
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text     = "$completedCount sessions in $year",
-            fontSize = 12.sp,
-            color    = Color.White.copy(alpha = 0.4f),
-        )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         FocusHeatmap(sessions = allSessions)
     }
 }
 
 @Composable
 private fun FocusHeatmap(sessions: List<SessionEntity>) {
+    val cs = MaterialTheme.colorScheme
     val sessionsByDay = sessions
         .filter { it.wasCompleted }
         .groupBy { it.startedAt / 86_400_000L }
@@ -311,6 +406,10 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
     val cellGap     = 2.dp
     val totalCell   = cellSize + cellGap
     val dayLabelW   = 20.dp
+
+    val cellFuture = cs.surfaceContainerLow
+    val cellZero   = cs.surfaceVariant
+    val todayBorder = cs.onSurface
 
     Column {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
@@ -328,7 +427,7 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (label.isNotEmpty()) {
-                            Text(text = label, fontSize = 8.sp, color = Color.White.copy(alpha = 0.3f))
+                            Text(text = label, fontSize = 8.sp, color = cs.onSurfaceVariant.copy(alpha = 0.7f))
                         }
                     }
                 }
@@ -350,7 +449,7 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
                             Text(
                                 text     = MONTH_NAMES[month],
                                 fontSize = 9.sp,
-                                color    = Color.White.copy(alpha = 0.4f),
+                                color    = cs.onSurfaceVariant,
                                 modifier = Modifier.width(totalCell * 4),
                             )
                         } else {
@@ -371,8 +470,8 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
                                 val isFuture = epochDay > today
 
                                 val cellColor = when {
-                                    isFuture   -> Color(0xFF111111)
-                                    count == 0 -> Color(0xFF1A1A1A)
+                                    isFuture   -> cellFuture
+                                    count == 0 -> cellZero
                                     count <= 2 -> Color(0xFF1A4A2A)
                                     count <= 4 -> Color(0xFF2D7A3D)
                                     count <= 6 -> Color(0xFF3A9A50)
@@ -386,7 +485,7 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
                                         .background(cellColor)
                                         .then(
                                             if (isToday) Modifier.border(
-                                                0.8.dp, Color.White, RoundedCornerShape(2.dp),
+                                                0.8.dp, todayBorder, RoundedCornerShape(2.dp),
                                             ) else Modifier,
                                         ),
                                 )
@@ -405,10 +504,10 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
             horizontalArrangement = Arrangement.End,
             verticalAlignment     = Alignment.CenterVertically,
         ) {
-            Text(text = "Less", fontSize = 9.sp, color = Color.White.copy(alpha = 0.3f))
+            Text(text = "Less", fontSize = 9.sp, color = cs.onSurfaceVariant.copy(alpha = 0.7f))
             Spacer(modifier = Modifier.width(4.dp))
             listOf(
-                Color(0xFF1A1A1A),
+                cellZero,
                 Color(0xFF1A4A2A),
                 Color(0xFF2D7A3D),
                 Color(0xFF3A9A50),
@@ -423,7 +522,7 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
-            Text(text = "More", fontSize = 9.sp, color = Color.White.copy(alpha = 0.3f))
+            Text(text = "More", fontSize = 9.sp, color = cs.onSurfaceVariant.copy(alpha = 0.7f))
         }
     }
 }
@@ -441,31 +540,21 @@ private fun BarChartSection(
     showMinutes:   Boolean,
     onToggle:      () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 24.dp),
-    ) {
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text       = "Last 7 Days",
-                fontSize   = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color      = Color.White,
-            )
+    TokiSectionCard {
+        SectionTitle(
+            title = "Last 7 days",
+            detail = if (showMinutes) "Minutes focused" else "Sessions completed",
+            trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 ChartToggleChip(label = "COUNT",   selected = !showMinutes, onClick = { if (showMinutes)  onToggle() })
                 ChartToggleChip(label = "MINUTES", selected = showMinutes,  onClick = { if (!showMinutes) onToggle() })
             }
-        }
+            },
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val cs = MaterialTheme.colorScheme
         val maxVal = if (showMinutes) maxMinutes else maxSessions
 
         // Value labels above bars
@@ -477,13 +566,14 @@ private fun BarChartSection(
                     modifier  = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                     fontSize  = 10.sp,
-                    color     = Color.White.copy(alpha = 0.5f),
+                    color     = cs.onSurfaceVariant,
                 )
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
 
         // Bars — rounded top corners only
+        val barPrimary = cs.primary
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -496,7 +586,7 @@ private fun BarChartSection(
             days.forEachIndexed { index, (epochDay, sessions, minutes) ->
                 val isToday  = epochDay == todayEpochDay
                 val count    = if (showMinutes) minutes else sessions
-                val barColor = if (isToday) Color.White else Color.White.copy(alpha = 0.15f)
+                val barColor = if (isToday) barPrimary else barPrimary.copy(alpha = 0.15f)
                 val x        = index * (barWidth + gap)
 
                 if (count > 0) {
@@ -516,7 +606,7 @@ private fun BarChartSection(
                 } else {
                     val floorH = 3.dp.toPx()
                     drawRoundRect(
-                        color        = Color.White.copy(alpha = 0.07f),
+                        color        = barPrimary.copy(alpha = 0.07f),
                         topLeft      = Offset(x, size.height - floorH),
                         size         = Size(barWidth, floorH),
                         cornerRadius = CornerRadius(floorH / 2f, floorH / 2f),
@@ -539,7 +629,7 @@ private fun BarChartSection(
                     textAlign  = TextAlign.Center,
                     fontSize   = 10.sp,
                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                    color      = if (isToday) Color.White else Color.White.copy(alpha = 0.4f),
+                    color      = if (isToday) cs.onSurface else cs.onSurfaceVariant,
                 )
             }
         }
@@ -548,18 +638,24 @@ private fun BarChartSection(
 
 @Composable
 private fun ChartToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50.dp))
-            .background(if (selected) Color.White.copy(alpha = 0.15f) else Color.Transparent)
+            .background(if (selected) cs.primary else Color.Transparent)
+            .border(
+                width = 1.dp,
+                color = if (selected) cs.primary else cs.outline,
+                shape = RoundedCornerShape(50.dp),
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 5.dp),
     ) {
         Text(
             text       = label,
             fontSize   = 10.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color      = if (selected) Color.White else Color.White.copy(alpha = 0.4f),
+            fontWeight = FontWeight.SemiBold,
+            color      = if (selected) cs.onPrimary else cs.onSurfaceVariant,
         )
     }
 }
@@ -570,19 +666,9 @@ private fun ChartToggleChip(label: String, selected: Boolean, onClick: () -> Uni
 
 @Composable
 private fun RecentIntervalsSection(recentSessions: List<SessionEntity>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 24.dp, bottom = 120.dp),
-    ) {
-        Text(
-            text       = "Recent Intervals",
-            fontSize   = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color      = Color.White,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
+    TokiSectionCard {
+        SectionTitle(title = "Recent intervals")
+        Spacer(modifier = Modifier.height(14.dp))
 
         if (recentSessions.isEmpty()) {
             Box(
@@ -592,7 +678,7 @@ private fun RecentIntervalsSection(recentSessions: List<SessionEntity>) {
                 Text(
                     text      = "Complete your first session to see history",
                     fontSize  = 13.sp,
-                    color     = Color.White.copy(alpha = 0.3f),
+                    color     = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -626,11 +712,12 @@ private fun RecentIntervalsSection(recentSessions: List<SessionEntity>) {
 
 @Composable
 private fun FullWidthSessionCard(session: SessionEntity) {
+    val cs = MaterialTheme.colorScheme
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color    = Color(0xFF111111),
-        shape    = RoundedCornerShape(12.dp),
-        border   = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
+        color    = cs.surfaceContainerHigh,
+        shape    = RoundedCornerShape(14.dp),
+        border   = BorderStroke(1.dp, cs.outline),
     ) {
         Row(
             modifier          = Modifier.padding(14.dp),
@@ -643,12 +730,12 @@ private fun FullWidthSessionCard(session: SessionEntity) {
                     text       = session.tag,
                     fontSize   = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color      = Color.White,
+                    color      = cs.onSurface,
                 )
                 Text(
                     text     = formatTimeAgo(session.startedAt),
                     fontSize = 12.sp,
-                    color    = Color.White.copy(alpha = 0.4f),
+                    color    = cs.onSurfaceVariant,
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -656,7 +743,7 @@ private fun FullWidthSessionCard(session: SessionEntity) {
                     text       = "${session.durationSeconds / 60}m",
                     fontSize   = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = Color.White,
+                    color      = cs.onSurface,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 CompletionBadge(wasCompleted = session.wasCompleted)
@@ -667,11 +754,12 @@ private fun FullWidthSessionCard(session: SessionEntity) {
 
 @Composable
 private fun SmallSessionCard(session: SessionEntity, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
     Surface(
         modifier = modifier.aspectRatio(1f),
-        color    = Color(0xFF111111),
-        shape    = RoundedCornerShape(12.dp),
-        border   = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
+        color    = cs.surfaceContainerHigh,
+        shape    = RoundedCornerShape(14.dp),
+        border   = BorderStroke(1.dp, cs.outline),
     ) {
         Column(
             modifier            = Modifier.padding(12.dp),
@@ -683,7 +771,7 @@ private fun SmallSessionCard(session: SessionEntity, modifier: Modifier = Modifi
                     text       = session.tag,
                     fontSize   = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color      = Color.White,
+                    color      = cs.onSurface,
                     maxLines   = 1,
                     overflow   = TextOverflow.Ellipsis,
                 )
@@ -698,7 +786,7 @@ private fun SmallSessionCard(session: SessionEntity, modifier: Modifier = Modifi
                         text       = display,
                         fontSize   = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color      = Color.White,
+                        color      = cs.onSurface,
                     )
                     CompletionBadge(wasCompleted = session.wasCompleted, compact = true)
                 }
@@ -709,9 +797,10 @@ private fun SmallSessionCard(session: SessionEntity, modifier: Modifier = Modifi
 
 @Composable
 private fun SessionIcon(tag: String, size: Dp) {
+    val cs = MaterialTheme.colorScheme
     Surface(
         modifier = Modifier.size(size),
-        color    = Color.White.copy(alpha = 0.06f),
+        color    = cs.surfaceVariant,
         shape    = RoundedCornerShape(size * 0.25f),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -723,7 +812,7 @@ private fun SessionIcon(tag: String, size: Dp) {
                     else                                       -> Icons.Outlined.Edit
                 },
                 contentDescription = null,
-                tint               = Color.White.copy(alpha = 0.6f),
+                tint               = cs.onSurface,
                 modifier           = Modifier.size(size * 0.5f),
             )
         }
@@ -732,10 +821,10 @@ private fun SessionIcon(tag: String, size: Dp) {
 
 @Composable
 private fun CompletionBadge(wasCompleted: Boolean, compact: Boolean = false) {
+    val cs = MaterialTheme.colorScheme
     Surface(
-        color = if (wasCompleted) Color(0xFF1A9E5F).copy(alpha = 0.2f)
-                else Color.White.copy(alpha = 0.06f),
-        shape = RoundedCornerShape(4.dp),
+        color = if (wasCompleted) TokiGreen.copy(alpha = 0.18f) else cs.surfaceVariant,
+        shape = RoundedCornerShape(50.dp),
     ) {
         Text(
             text     = if (wasCompleted) "COMPLETED" else "STOPPED",
@@ -744,8 +833,8 @@ private fun CompletionBadge(wasCompleted: Boolean, compact: Boolean = false) {
                 vertical   = if (compact) 2.dp else 3.dp,
             ),
             fontSize      = if (compact) 8.sp else 9.sp,
-            color         = if (wasCompleted) Color(0xFF1A9E5F) else Color.White.copy(alpha = 0.3f),
-            letterSpacing = 0.06.em,
+            color         = if (wasCompleted) TokiGreen else cs.onSurfaceVariant.copy(alpha = 0.7f),
+            letterSpacing = 0.7.sp,
         )
     }
 }
@@ -776,12 +865,8 @@ private fun formatTimeAgo(startedAtMs: Long): String {
 private fun BadgesSection(badges: List<Badge>) {
     var selectedBadge by remember { mutableStateOf<Badge?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 8.dp, bottom = 40.dp),
-    ) {
+    TokiSectionCard {
+        val cs = MaterialTheme.colorScheme
         // Header
         Row(
             modifier              = Modifier.fillMaxWidth(),
@@ -789,16 +874,18 @@ private fun BadgesSection(badges: List<Badge>) {
             verticalAlignment     = Alignment.CenterVertically,
         ) {
             Text(
-                text       = "Achievements",
-                fontSize   = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color      = Color.White,
+                text       = "ACHIEVEMENTS",
+                fontSize   = 13.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.8.sp,
+                color      = cs.onSurfaceVariant,
             )
             val unlockedCount = badges.count { it.isUnlocked }
             Text(
                 text     = "$unlockedCount / ${badges.size}",
                 fontSize = 12.sp,
-                color    = Color.White.copy(alpha = 0.4f),
+                color    = cs.onSurfaceVariant,
             )
         }
         Spacer(Modifier.height(12.dp))
@@ -824,7 +911,7 @@ private fun BadgesSection(badges: List<Badge>) {
                     }
                 }
             }
-            if (row < rows - 1) Spacer(Modifier.height(8.dp))
+            if (row < rows - 1) Spacer(Modifier.height(10.dp))
         }
     }
 
@@ -843,17 +930,17 @@ private fun BadgeCard(
     modifier: Modifier = Modifier,
     onClick:  () -> Unit,
 ) {
+    val cs = MaterialTheme.colorScheme
     Surface(
         modifier = modifier
             .aspectRatio(0.85f)
             .clickable(onClick = onClick)
             .then(if (!badge.isUnlocked) Modifier.grayscale() else Modifier),
-        color  = if (badge.isUnlocked) Color(0xFF1A1A2E) else Color(0xFF0D0D0D),
-        shape  = RoundedCornerShape(12.dp),
+        color  = if (badge.isUnlocked) cs.surfaceContainerHigh else cs.surfaceContainerLow,
+        shape  = RoundedCornerShape(14.dp),
         border = BorderStroke(
-            width = 0.5.dp,
-            color = if (badge.isUnlocked) Color(0xFF6C63FF).copy(alpha = 0.35f)
-                    else Color.White.copy(alpha = 0.07f),
+            width = 1.dp,
+            color = if (badge.isUnlocked) cs.outline else cs.outline.copy(alpha = 0.55f),
         ),
     ) {
         Column(
@@ -870,7 +957,7 @@ private fun BadgeCard(
                 text       = if (badge.isUnlocked) badge.name else "???",
                 fontSize   = 9.sp,
                 fontWeight = FontWeight.Medium,
-                color      = if (badge.isUnlocked) Color.White else Color.White.copy(alpha = 0.25f),
+                color      = if (badge.isUnlocked) cs.onSurface else cs.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign  = TextAlign.Center,
                 maxLines   = 2,
                 overflow   = TextOverflow.Ellipsis,
@@ -882,9 +969,10 @@ private fun BadgeCard(
 
 @Composable
 private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor   = Color(0xFF12121E),
+        containerColor   = cs.surfaceContainerLow,
         shape            = RoundedCornerShape(20.dp),
         title = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -894,7 +982,7 @@ private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                     text       = if (badge.isUnlocked) badge.name else "???",
                     fontSize   = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = Color.White,
+                    color      = cs.onSurface,
                     textAlign  = TextAlign.Center,
                 )
             }
@@ -904,7 +992,7 @@ private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                 Text(
                     text      = badge.description,
                     fontSize  = 14.sp,
-                    color     = Color.White.copy(alpha = 0.6f),
+                    color     = cs.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 if (badge.isUnlocked && badge.unlockedAt != null) {
@@ -913,13 +1001,13 @@ private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                         .atZone(ZoneId.systemDefault())
                         .format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US))
                     Surface(
-                        color = Color(0xFF6C63FF).copy(alpha = 0.12f),
+                        color = cs.surfaceContainerHigh,
                         shape = RoundedCornerShape(8.dp),
                     ) {
                         Text(
                             text     = "Unlocked $date",
                             fontSize = 11.sp,
-                            color    = Color(0xFF6C63FF),
+                            color    = cs.onSurface,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
@@ -928,7 +1016,7 @@ private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
                     Text(
                         text     = "Keep focusing to unlock this badge",
                         fontSize = 11.sp,
-                        color    = Color.White.copy(alpha = 0.3f),
+                        color    = cs.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                 }
@@ -936,7 +1024,7 @@ private fun BadgeDetailDialog(badge: Badge, onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Close", color = Color(0xFF6C63FF))
+                Text(text = "Close", color = cs.onSurface)
             }
         },
     )

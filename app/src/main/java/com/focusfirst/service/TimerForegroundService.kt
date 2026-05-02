@@ -112,8 +112,10 @@ class TimerForegroundService : Service() {
         const val EXTRA_IS_RUNNING        = "extra_is_running"
         const val EXTRA_IS_FLOW_MODE      = "extra_is_flow_mode"
 
-        const val NOTIFICATION_ID = 1001
-        const val CHANNEL_ID      = "focusfirst_timer"
+        const val NOTIFICATION_ID    = 1001
+        const val NOTIFY_ID_COMPLETE = 1003
+        const val CHANNEL_ID         = "focusfirst_timer"
+        private const val CHANNEL_ALERTS = "focusfirst_alerts"
 
         private const val TAG = "TimerForegroundService"
 
@@ -283,6 +285,8 @@ class TimerForegroundService : Service() {
         Log.d(TAG, "onPhaseFinished phase=$currentPhase")
         TimerAlarmWorker.setCompleted(this)
         clearBootPrefs()
+        wakeScreen()
+        postCompletionNotification(currentPhase)
         vibrate()
         playSound()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -439,6 +443,7 @@ class TimerForegroundService : Service() {
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(0, if (isRunning) "Pause" else "Resume", pauseResumePendingIntent)
             .addAction(0, "Stop", stopPendingIntent)
@@ -480,6 +485,48 @@ class TimerForegroundService : Service() {
     // ========================================================================
     // Helpers
     // ========================================================================
+
+    @Suppress("DEPRECATION")
+    private fun wakeScreen() {
+        try {
+            val pm = getSystemService(PowerManager::class.java)
+            pm.newWakeLock(
+                PowerManager.FULL_WAKE_LOCK or
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "Toki:SessionEndWake",
+            ).acquire(5_000L) // auto-released after 5 s
+        } catch (e: Exception) {
+            Log.w(TAG, "wakeScreen failed: ${e.message}")
+        }
+    }
+
+    private fun postCompletionNotification(phase: TimerPhase) {
+        val title = when (phase) {
+            TimerPhase.FOCUS       -> "Focus session complete 🍅"
+            TimerPhase.SHORT_BREAK -> "Break over — back to work!"
+            TimerPhase.LONG_BREAK  -> "Long break done!"
+        }
+        val openIntent = PendingIntent.getActivity(
+            this, 10,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(this, CHANNEL_ALERTS)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle(title)
+            .setContentText("Tap to start the next interval.")
+            .setContentIntent(openIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(openIntent, true)
+            .build()
+        notificationManager.notify(NOTIFY_ID_COMPLETE, notification)
+    }
 
     private fun acquireWakeLock(timeoutMs: Long) {
         releaseWakeLock()

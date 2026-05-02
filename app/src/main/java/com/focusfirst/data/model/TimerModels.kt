@@ -47,7 +47,11 @@ data class TimerState(
      */
     val progress: Float
         get() = when (timerMode) {
-            TimerMode.FLOW     -> (elapsedSeconds / (25 * 60f)).coerceIn(0f, 1f)
+            TimerMode.FLOW     -> if (totalSeconds > 0) {
+                (totalSeconds - remainingSeconds) / totalSeconds.toFloat()
+            } else {
+                (elapsedSeconds / (25 * 60f)).coerceIn(0f, 1f)
+            }
             TimerMode.POMODORO -> if (totalSeconds == 0) 0f
                                   else (totalSeconds - remainingSeconds) / totalSeconds.toFloat()
         }
@@ -55,7 +59,7 @@ data class TimerState(
     /** "MM:SS" string suitable for display on the timer face. */
     val displayTime: String
         get() {
-            val secs    = if (timerMode == TimerMode.FLOW) elapsedSeconds else remainingSeconds
+            val secs    = if (timerMode == TimerMode.FLOW && totalSeconds == 0) elapsedSeconds else remainingSeconds
             val minutes = secs / 60
             val seconds = secs % 60
             return "%02d:%02d".format(minutes, seconds)
