@@ -253,6 +253,17 @@ class TimerViewModel @Inject constructor(
         }
         localBroadcastManager.registerReceiver(timerReceiver, filter)
         Log.d(TAG, "init: BroadcastReceiver registered")
+
+        // Keep the idle timer display in sync when the user changes duration in Settings.
+        viewModelScope.launch {
+            focusMinutesFlow.collect { minutes ->
+                val state = _timerState.value
+                if (!state.isRunning && !state.isPaused && state.phase == TimerPhase.FOCUS) {
+                    val seconds = minutes * 60
+                    _timerState.update { it.copy(totalSeconds = seconds, remainingSeconds = seconds) }
+                }
+            }
+        }
     }
 
     // ========================================================================
@@ -263,7 +274,7 @@ class TimerViewModel @Inject constructor(
      * Starts a fresh FOCUS session in Pomodoro (count-down) mode.
      */
     fun start(preset: IntervalPreset = _timerState.value.preset) {
-        val durationSeconds = preset.focusMinutes * 60
+        val durationSeconds = focusMinutesFlow.value * 60
         sessionStartMs = System.currentTimeMillis()
 
         _timerState.update { current ->
@@ -430,16 +441,10 @@ class TimerViewModel @Inject constructor(
         val state = _timerState.value
         if (state.isRunning || state.isPaused) return
 
-        val focusSeconds = preset.focusMinutes * 60
+        // Preset selection only changes which preset is active.
+        // Duration comes from Settings (focusMinutesFlow), so we do NOT overwrite it here.
         _timerState.update { current ->
-            current.copy(
-                preset           = preset,
-                totalSeconds     = focusSeconds,
-                remainingSeconds = focusSeconds,
-            )
-        }
-        viewModelScope.launch {
-            settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, preset.focusMinutes)
+            current.copy(preset = preset)
         }
         Log.d(TAG, "selectPreset $preset")
     }
