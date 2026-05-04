@@ -67,7 +67,7 @@ fun SoundSelectorSheet(
             Text(
                 text     = "Plays during focus, pauses on break",
                 fontSize = 13.sp,
-                color    = Color.White.copy(alpha = 0.4f),
+                color    = Color.White.copy(alpha = 0.5f),
             )
 
             Spacer(Modifier.height(16.dp))
@@ -159,7 +159,7 @@ private fun SoundCard(
                 text       = sound.displayName,
                 fontSize   = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                color      = if (isLocked) Color.White.copy(alpha = 0.4f) else Color.White,
+                color      = if (isLocked) Color.White.copy(alpha = 0.5f) else Color.White,
                 modifier   = Modifier.weight(1f),
             )
             if (isLocked) {

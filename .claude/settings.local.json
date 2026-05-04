@@ -21,7 +21,13 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:mvnrepository.com)",
       "WebFetch(domain:central.sonatype.com)",
-      "WebFetch(domain:medium.com)"
+      "WebFetch(domain:medium.com)",
+      "Bash(Remove-Item *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\StudioProjects\\\\FocusFirst\\\\app\\\\src\\\\main\\\\java\\\\com\\\\focusfirst\\\\ui\" -Recurse -Filter \"*.kt\")",
+      "Bash(Select-Object FullName)",
+      "Bash(findstr /R /S \"0x[A-Fa-f0-9]*[A-Fa-f0-9]\" app\\\\src\\\\main\\\\java\\\\com\\\\focusfirst\\\\ui\\\\screens\\\\*.kt)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\user\\\\StudioProjects\\\\FocusFirst\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

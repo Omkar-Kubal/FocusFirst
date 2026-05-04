@@ -80,13 +80,13 @@ fun BreakSuggestionSheet(
                     Text(
                         text     = "${breakDurationSeconds / 60} min break",
                         fontSize = 13.sp,
-                        color    = Color.White.copy(alpha = 0.4f),
+                        color    = Color.White.copy(alpha = 0.5f),
                     )
                 }
                 TextButton(onClick = onDismiss) {
                     Text(
                         text     = "Skip",
-                        color    = Color.White.copy(alpha = 0.4f),
+                        color    = Color.White.copy(alpha = 0.5f),
                         fontSize = 13.sp,
                     )
                 }
@@ -97,7 +97,7 @@ fun BreakSuggestionSheet(
             Text(
                 text          = "SUGGESTED ACTIVITIES",
                 fontSize      = 10.sp,
-                color         = Color.White.copy(alpha = 0.35f),
+                color         = Color.White.copy(alpha = 0.5f),
                 letterSpacing = 1.5.sp,
             )
 
@@ -114,7 +114,7 @@ fun BreakSuggestionSheet(
             Text(
                 text      = "Step away. Your work will still be there.",
                 fontSize  = 12.sp,
-                color     = Color.White.copy(alpha = 0.25f),
+                color     = Color.White.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
                 modifier  = Modifier.fillMaxWidth(),
             )
@@ -157,7 +157,7 @@ private fun BreakActivityCard(activity: BreakActivity) {
                 Text(
                     text     = activity.description,
                     fontSize = 12.sp,
-                    color    = Color.White.copy(alpha = 0.45f),
+                    color    = Color.White.copy(alpha = 0.5f),
                 )
             }
 

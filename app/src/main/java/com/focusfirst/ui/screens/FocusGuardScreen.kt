@@ -348,7 +348,7 @@ private fun SectionLabel(text: String) {
         text          = text.uppercase(),
         fontSize      = 11.sp,
         fontWeight    = FontWeight.SemiBold,
-        color         = Color.White.copy(alpha = 0.4f),
+        color         = Color.White.copy(alpha = 0.5f),
         letterSpacing = androidx.compose.ui.unit.TextUnit(0.12f,
             androidx.compose.ui.unit.TextUnitType.Em),
         modifier      = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 6.dp),
@@ -520,7 +520,7 @@ private fun AppBlockRow(
             Text(
                 text     = app.packageName,
                 fontSize = 11.sp,
-                color    = Color.White.copy(alpha = 0.35f),
+                color    = Color.White.copy(alpha = 0.5f),
                 maxLines = 1,
             )
         }

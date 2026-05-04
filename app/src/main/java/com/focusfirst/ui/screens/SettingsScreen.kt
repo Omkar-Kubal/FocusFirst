@@ -575,7 +575,7 @@ fun SettingsScreen(
                 text          = "© 2026 Toki. All rights reserved.",
                 fontSize      = 11.sp,
                 letterSpacing = 0.3.sp,
-                color         = cs.onSurface.copy(alpha = 0.28f),
+                color         = cs.onSurface.copy(alpha = 0.5f),
                 modifier      = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),

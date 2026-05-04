@@ -40,7 +40,6 @@ class SettingsRepository(
         val KEY_VIBRATE = booleanPreferencesKey("KEY_VIBRATE")
         val KEY_THEME_MODE = stringPreferencesKey("KEY_THEME_MODE")
         val KEY_AMOLED_MODE = booleanPreferencesKey("KEY_AMOLED_MODE")
-        val KEY_BATTERY_PROMPT_DISMISSED = booleanPreferencesKey("KEY_BATTERY_PROMPT_DISMISSED")
         val KEY_NOTIFICATION_PERMISSION_ASKED =
             booleanPreferencesKey("KEY_NOTIFICATION_PERMISSION_ASKED")
         val KEY_PRO_UNLOCKED = booleanPreferencesKey("KEY_PRO_UNLOCKED")
@@ -78,9 +77,6 @@ class SettingsRepository(
     val themeMode: Flow<String> = dataStore.data.map { it[KEY_THEME_MODE] ?: "System" }
 
     val amoledMode: Flow<Boolean> = dataStore.data.map { it[KEY_AMOLED_MODE] ?: false }
-
-    val batteryPromptDismissed: Flow<Boolean> =
-        dataStore.data.map { it[KEY_BATTERY_PROMPT_DISMISSED] ?: false }
 
     val notificationPermissionAsked: Flow<Boolean> =
         dataStore.data.map { it[KEY_NOTIFICATION_PERMISSION_ASKED] ?: false }

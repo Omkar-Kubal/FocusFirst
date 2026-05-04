@@ -237,7 +237,7 @@ private fun SkinCard(
                 else -> Text(
                     text = skin.description,
                     fontSize = 10.sp,
-                    color = Color.White.copy(alpha = 0.4f),
+                    color = Color.White.copy(alpha = 0.5f),
                     maxLines = 1,
                 )
             }

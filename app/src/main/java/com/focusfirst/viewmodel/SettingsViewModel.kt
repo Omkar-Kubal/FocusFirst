@@ -66,13 +66,6 @@ class SettingsViewModel @Inject constructor(
         initialValue = false,
     )
 
-    val batteryPromptDismissed: StateFlow<Boolean> =
-        settingsRepository.batteryPromptDismissed.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false,
-        )
-
     val notificationPermissionAsked: StateFlow<Boolean> =
         settingsRepository.notificationPermissionAsked.stateIn(
             scope = viewModelScope,
@@ -168,12 +161,6 @@ class SettingsViewModel @Inject constructor(
     fun updateAmoledMode(value: Boolean) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_AMOLED_MODE, value)
-        }
-    }
-
-    fun updateBatteryPromptDismissed(value: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.update(SettingsRepository.KEY_BATTERY_PROMPT_DISMISSED, value)
         }
     }
 

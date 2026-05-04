@@ -75,7 +75,6 @@ import com.focusfirst.data.model.TimerState
 import com.focusfirst.ui.components.BreakSuggestionSheet
 import com.focusfirst.ui.components.SoundSelectorSheet
 import com.focusfirst.ui.components.TaskSheet
-import com.focusfirst.util.BatteryPromptDialog
 import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TaskViewModel
 import com.focusfirst.viewmodel.TimerViewModel
@@ -213,8 +212,6 @@ fun HomeScreen(
             onDismiss = { showTaskSheet = false },
         )
     }
-
-    BatteryPromptDialog(settingsViewModel = settingsViewModel, context = context)
 
     val fabIcon = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
     val fabLabel = when {

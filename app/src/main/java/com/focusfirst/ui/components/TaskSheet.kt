@@ -84,7 +84,7 @@ fun TaskSheet(
                     Text(
                         text     = "$activeCount/3 free",
                         fontSize = 12.sp,
-                        color    = Color.White.copy(alpha = 0.4f),
+                        color    = Color.White.copy(alpha = 0.5f),
                     )
                 }
             }
@@ -105,7 +105,7 @@ fun TaskSheet(
                     placeholder   = {
                         Text(
                             text  = if (canAdd) "Add a task…" else "Upgrade for more tasks",
-                            color = Color.White.copy(alpha = 0.3f),
+                            color = Color.White.copy(alpha = 0.5f),
                         )
                     },
                     modifier        = Modifier.weight(1f),
@@ -125,7 +125,7 @@ fun TaskSheet(
                         unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
                         focusedTextColor     = Color.White,
                         unfocusedTextColor   = Color.White,
-                        disabledTextColor    = Color.White.copy(alpha = 0.3f),
+                        disabledTextColor    = Color.White.copy(alpha = 0.5f),
                         disabledBorderColor  = Color.White.copy(alpha = 0.06f),
                     ),
                 )
@@ -195,7 +195,7 @@ fun TaskSheet(
                     Text(
                         text     = "No tasks yet — add one above",
                         fontSize = 13.sp,
-                        color    = Color.White.copy(alpha = 0.3f),
+                        color    = Color.White.copy(alpha = 0.5f),
                     )
                 }
             }
@@ -252,7 +252,7 @@ private fun TaskRow(
                     Text(
                         text     = "$completedPomodoros/$targetPomodoros 🍅",
                         fontSize = 11.sp,
-                        color    = Color.White.copy(alpha = 0.4f),
+                        color    = Color.White.copy(alpha = 0.5f),
                     )
                 }
             }
