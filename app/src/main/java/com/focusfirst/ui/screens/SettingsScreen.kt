@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NotificationsOff
@@ -78,7 +80,9 @@ import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-private val CardShape = RoundedCornerShape(18.dp)
+// M3 Card shape: Medium token = 12dp (was 18dp)
+// Per material_design_skills.md §3.2: Card (elevated/filled/outlined) → Medium shape (12dp)
+private val CardShape = RoundedCornerShape(12.dp)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -287,6 +291,8 @@ fun SettingsScreen(
                     range     = 10f..60f,
                     steps     = 49,
                     onChange  = { settingsViewModel.updateFocusMinutes(it.roundToInt().coerceIn(10, 60)) },
+                    isPro     = isPro,
+                    onUpgradeClick = { billingViewModel.openUpgradeSheet() }
                 )
                 RowDivider()
                 SliderSettingRow(
@@ -298,6 +304,8 @@ fun SettingsScreen(
                     range     = 1f..15f,
                     steps     = 13,
                     onChange  = { settingsViewModel.updateShortBreakMinutes(it.roundToInt().coerceIn(1, 15)) },
+                    isPro     = isPro,
+                    onUpgradeClick = { billingViewModel.openUpgradeSheet() }
                 )
                 RowDivider()
                 SliderSettingRow(
@@ -309,6 +317,8 @@ fun SettingsScreen(
                     range     = 10f..30f,
                     steps     = 19,
                     onChange  = { settingsViewModel.updateLongBreakMinutes(it.roundToInt().coerceIn(10, 30)) },
+                    isPro     = isPro,
+                    onUpgradeClick = { billingViewModel.openUpgradeSheet() }
                 )
                 RowDivider()
                 SegmentedIntRow(
@@ -508,6 +518,41 @@ fun SettingsScreen(
                 }
             }
 
+            SectionGap()
+            SectionLabel("DATA & EXPORT")
+            Spacer(Modifier.height(10.dp))
+            SettingsSectionCard {
+                Row(
+                    modifier              = Modifier.fillMaxWidth().clickable {
+                        if (isPro) settingsViewModel.exportData()
+                        else billingViewModel.openUpgradeSheet()
+                    }.padding(vertical = 12.dp, horizontal = 4.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                ) {
+                    BadgeIcon(icon = Icons.Outlined.Code, tint = Color(0xFF007AFF))
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text       = "Export Data (CSV)",
+                                fontSize   = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color      = cs.onSurface,
+                            )
+                            if (!isPro) {
+                                Spacer(Modifier.width(6.dp))
+                                ProBadge()
+                            }
+                        }
+                        Text(
+                            text     = "Export all your focus sessions to a CSV file",
+                            fontSize = 12.sp,
+                            color    = cs.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             // ── About ──────────────────────────────────────────────────────
             SectionGap()
             SectionLabel("ABOUT")
@@ -646,7 +691,7 @@ private fun BadgeIcon(icon: ImageVector, tint: Color) {
             imageVector        = icon,
             contentDescription = null,
             tint               = tint,
-            modifier           = Modifier.size(19.dp),
+            modifier           = Modifier.size(24.dp),
         )
     }
 }
@@ -693,7 +738,10 @@ private fun SettingsSwitchRow(
 ) {
     val cs = MaterialTheme.colorScheme
     Row(
-        modifier              = Modifier.fillMaxWidth(),
+        modifier              = Modifier
+            .fillMaxWidth()
+            // M3 Accessibility: minimum 48dp touch target for all interactive rows
+            .defaultMinSize(minHeight = 48.dp),
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -748,6 +796,8 @@ private fun SettingsChevronRow(
     Row(
         modifier              = Modifier
             .fillMaxWidth()
+            // M3 Accessibility: minimum 48dp touch target for all interactive rows
+            .defaultMinSize(minHeight = 48.dp)
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp),
         verticalAlignment     = Alignment.CenterVertically,
@@ -786,7 +836,7 @@ private fun SettingsChevronRow(
             imageVector        = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
             contentDescription = null,
             tint               = cs.onSurfaceVariant,
-            modifier           = Modifier.size(18.dp),
+            modifier           = Modifier.size(24.dp),
         )
     }
 }
@@ -802,6 +852,8 @@ private fun SliderSettingRow(
     range:     ClosedFloatingPointRange<Float>,
     steps:     Int,
     onChange:  (Float) -> Unit,
+    isPro:     Boolean = true,
+    onUpgradeClick: () -> Unit = {},
 ) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth()) {
@@ -816,12 +868,18 @@ private fun SliderSettingRow(
             ) {
                 BadgeIcon(icon = icon, tint = iconTint)
                 Spacer(Modifier.width(14.dp))
-                Text(
-                    text       = label,
-                    fontSize   = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color      = cs.onSurface,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text       = label,
+                        fontSize   = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color      = cs.onSurface,
+                    )
+                    if (!isPro) {
+                        Spacer(Modifier.width(6.dp))
+                        ProBadge()
+                    }
+                }
             }
             // Value pill — matches duration-selector pill style
             Box(
@@ -838,20 +896,36 @@ private fun SliderSettingRow(
                 )
             }
         }
-        Slider(
-            value         = value,
-            onValueChange = onChange,
-            valueRange    = range,
-            steps         = steps,
-            modifier      = Modifier
-                .fillMaxWidth()
-                .padding(top = 0.dp),
-            colors        = SliderDefaults.colors(
-                thumbColor         = cs.primary,
-                activeTrackColor   = cs.primary,
-                inactiveTrackColor = cs.onSurfaceVariant.copy(alpha = 0.22f),
-            ),
-        )
+        Box {
+            Slider(
+                value         = value,
+                onValueChange = onChange,
+                valueRange    = range,
+                steps         = steps,
+                enabled       = isPro,
+                modifier      = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 0.dp),
+                colors        = SliderDefaults.colors(
+                    thumbColor         = cs.primary,
+                    activeTrackColor   = cs.primary,
+                    inactiveTrackColor = cs.onSurfaceVariant.copy(alpha = 0.22f),
+                    disabledThumbColor = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                    disabledActiveTrackColor = cs.onSurfaceVariant.copy(alpha = 0.5f)
+                ),
+            )
+            if (!isPro) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null,
+                            onClick = onUpgradeClick
+                        )
+                )
+            }
+        }
     }
 }
 
@@ -918,10 +992,17 @@ private fun SegmentedIntRow(
 // Switch colours helper
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * M3-compliant Switch color mapping per material_design_skills.md §7.10:
+ *   Checked track  → primaryContainer (was primary.copy(alpha=0.5f))
+ *   Checked thumb  → onPrimaryContainer (was primary)
+ *   Unchecked track → surfaceVariant ✅
+ *   Unchecked thumb → outline ✅
+ */
 @Composable
 private fun switchColors(cs: androidx.compose.material3.ColorScheme) = SwitchDefaults.colors(
-    checkedThumbColor   = cs.primary,
-    checkedTrackColor   = cs.primary.copy(alpha = 0.5f),
+    checkedThumbColor   = cs.onPrimaryContainer,
+    checkedTrackColor   = cs.primaryContainer,
     uncheckedThumbColor = cs.outline,
     uncheckedTrackColor = cs.surfaceVariant,
 )

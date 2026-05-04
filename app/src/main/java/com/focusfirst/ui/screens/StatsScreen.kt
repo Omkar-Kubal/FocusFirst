@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FreeBreakfast
@@ -72,7 +73,8 @@ import java.util.Calendar
 import java.util.Locale
 
 private val TokiGreen     = Color(0xFF1A9E5F)
-private val TokiCardShape = RoundedCornerShape(18.dp)
+// M3 Card shape: Medium token = 12dp (was 18dp) per material_design_skills.md §3.2
+private val TokiCardShape = RoundedCornerShape(12.dp)
 
 // Backport of Modifier.grayscale() (added in Compose 1.8, not in BOM 2024.12.01)
 private fun Modifier.grayscale(): Modifier = drawWithContent {
@@ -91,6 +93,7 @@ private fun Modifier.grayscale(): Modifier = drawWithContent {
 fun StatsScreen(
     timerViewModel:       TimerViewModel = hiltViewModel(),
     badgeViewModel:       BadgeViewModel = hiltViewModel(),
+    billingViewModel:     com.focusfirst.billing.BillingViewModel = hiltViewModel(),
     onNavigateToSettings: () -> Unit     = {},
 ) {
     val totalCompleted by timerViewModel.totalCompleted.collectAsStateWithLifecycle()
@@ -99,6 +102,7 @@ fun StatsScreen(
     val streakDays     by timerViewModel.streakDays.collectAsStateWithLifecycle()
     val allSessions    by timerViewModel.allSessions.collectAsStateWithLifecycle()
     val badges         by badgeViewModel.badges.collectAsStateWithLifecycle()
+    val isPro          by billingViewModel.isPro.collectAsStateWithLifecycle()
 
     val weeklyTotal   = weeklySummary.sumOf { it.sessionCount }
     val todayEpochDay = System.currentTimeMillis() / 86_400_000L
@@ -176,14 +180,32 @@ fun StatsScreen(
 
         // 3 · Bar chart
         item {
-            BarChartSection(
-                days          = daysChart,
-                maxSessions   = maxSessions,
-                maxMinutes    = maxMinutes,
-                todayEpochDay = todayEpochDay,
-                showMinutes   = showMinutes,
-                onToggle      = { showMinutes = !showMinutes },
-            )
+            Box {
+                BarChartSection(
+                    days          = daysChart,
+                    maxSessions   = maxSessions,
+                    maxMinutes    = maxMinutes,
+                    todayEpochDay = todayEpochDay,
+                    showMinutes   = showMinutes,
+                    onToggle      = { showMinutes = !showMinutes },
+                    modifier      = if (!isPro) Modifier.grayscale().clip(RoundedCornerShape(12.dp)) else Modifier
+                )
+                if (!isPro) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(cs.background.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable { billingViewModel.openUpgradeSheet() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Filled.Lock, contentDescription = "Pro Required", tint = cs.onSurface, modifier = Modifier.size(32.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text("Pro Feature", fontWeight = FontWeight.Bold, color = cs.onSurface)
+                        }
+                    }
+                }
+            }
         }
 
         // 4 · Recent intervals
@@ -246,7 +268,7 @@ private fun StatsHeader(
                 imageVector = Icons.Outlined.Settings,
                 contentDescription = "Settings",
                 tint = cs.onBackground,
-                modifier = Modifier.size(27.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -539,8 +561,9 @@ private fun BarChartSection(
     todayEpochDay: Long,
     showMinutes:   Boolean,
     onToggle:      () -> Unit,
+    modifier:      Modifier = Modifier,
 ) {
-    TokiSectionCard {
+    TokiSectionCard(modifier = modifier) {
         SectionTitle(
             title = "Last 7 days",
             detail = if (showMinutes) "Minutes focused" else "Sessions completed",
@@ -813,7 +836,7 @@ private fun SessionIcon(tag: String, size: Dp) {
                 },
                 contentDescription = null,
                 tint               = cs.onSurface,
-                modifier           = Modifier.size(size * 0.5f),
+                modifier           = Modifier.size(if (size >= 40.dp) 24.dp else 20.dp),
             )
         }
     }

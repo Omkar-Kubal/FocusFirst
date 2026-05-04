@@ -149,6 +149,7 @@ fun TaskSheet(
                             imageVector        = Icons.Filled.Add,
                             contentDescription = "Add task",
                             tint               = Color.White,
+                            modifier           = Modifier.size(24.dp),
                         )
                     }
                 }
@@ -266,7 +267,7 @@ private fun TaskRow(
                         imageVector        = Icons.Outlined.CheckCircle,
                         contentDescription = "Complete task",
                         tint               = Color.White.copy(alpha = 0.4f),
-                        modifier           = Modifier.size(18.dp),
+                        modifier           = Modifier.size(24.dp),
                     )
                 }
                 IconButton(
@@ -277,7 +278,7 @@ private fun TaskRow(
                         imageVector        = Icons.Outlined.Delete,
                         contentDescription = "Delete task",
                         tint               = Color.White.copy(alpha = 0.4f),
-                        modifier           = Modifier.size(18.dp),
+                        modifier           = Modifier.size(24.dp),
                     )
                 }
             }

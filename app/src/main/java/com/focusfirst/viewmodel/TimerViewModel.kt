@@ -441,11 +441,18 @@ class TimerViewModel @Inject constructor(
         val state = _timerState.value
         if (state.isRunning || state.isPaused) return
 
-        // Preset selection only changes which preset is active.
-        // Duration comes from Settings (focusMinutesFlow), so we do NOT overwrite it here.
+        // Update the active preset
         _timerState.update { current ->
             current.copy(preset = preset)
         }
+        
+        // Update the underlying settings so the slider and timer display sync
+        if (preset != IntervalPreset.FLOW) {
+            viewModelScope.launch {
+                settingsRepository.update(SettingsRepository.KEY_FOCUS_MINUTES, preset.focusMinutes)
+            }
+        }
+        
         Log.d(TAG, "selectPreset $preset")
     }
 

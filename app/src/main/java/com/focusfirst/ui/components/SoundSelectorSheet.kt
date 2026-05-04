@@ -170,7 +170,7 @@ private fun SoundCard(
                     imageVector        = Icons.Outlined.CheckCircle,
                     contentDescription = null,
                     tint               = Color.White,
-                    modifier           = Modifier.size(16.dp),
+                    modifier           = Modifier.size(24.dp),
                 )
             }
         }

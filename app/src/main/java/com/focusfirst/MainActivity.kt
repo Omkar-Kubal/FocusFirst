@@ -16,12 +16,15 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Timer
@@ -42,6 +46,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -56,9 +61,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -71,6 +78,7 @@ import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.components.FirstLaunchDialog
 import androidx.activity.compose.BackHandler
 import com.focusfirst.ui.screens.HomeScreen
+import com.focusfirst.ui.screens.TasksScreen
 import com.focusfirst.ui.screens.LicensesScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
@@ -87,7 +95,7 @@ import javax.inject.Inject
 // Navigation
 // ============================================================================
 
-private enum class Tab { HOME, STATS, SETTINGS }
+private enum class Tab { HOME, TASKS, STATS, SETTINGS }
 
 private data class TabItem(
     val tab:   Tab,
@@ -97,6 +105,7 @@ private data class TabItem(
 
 private val tabs = listOf(
     TabItem(Tab.HOME,     "TIMER",    Icons.Outlined.Timer),
+    TabItem(Tab.TASKS,    "TASKS",    Icons.AutoMirrored.Outlined.List),
     TabItem(Tab.STATS,    "STATS",    Icons.Outlined.BarChart),
     TabItem(Tab.SETTINGS, "SETTINGS", Icons.Outlined.Person),
 )
@@ -317,6 +326,9 @@ private fun FocusFirstAppContent(
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
+                Tab.TASKS    -> TasksScreen(
+                    onNavigateToHome = { onTabSelected(Tab.HOME) }
+                )
                 Tab.STATS    -> StatsScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
@@ -337,6 +349,18 @@ private fun FocusFirstAppContent(
 // Bottom navigation bar
 // ============================================================================
 
+/**
+ * M3-compliant bottom navigation bar (Option B — custom pill container).
+ *
+ * Changes from original per material_design_skills.md §7.4:
+ *  - Height: 76dp → 80dp
+ *  - Icon: 27dp → 24dp (M3 spec)
+ *  - Label: labelMedium (12sp, Medium, 0.5sp tracking) replacing raw font props
+ *  - Active indicator: 64×32dp primaryContainer pill (replaces 3dp underline bar)
+ *  - Ripple: indication() on each item for M3 interaction states
+ *  - Touch target: defaultMinSize(minHeight = 48dp) per item
+ *  - Semantics: Role.Tab + selected state on each item
+ */
 @Composable
 private fun FocusBottomNav(
     selectedTab:   Tab,
@@ -355,7 +379,8 @@ private fun FocusBottomNav(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(76.dp)
+                // M3 NavigationBar height = 80dp
+                .height(80.dp)
                 .clip(RoundedCornerShape(50.dp))
                 .background(cs.surfaceContainerLow)
                 .border(1.dp, cs.outline, RoundedCornerShape(50.dp))
@@ -364,37 +389,56 @@ private fun FocusBottomNav(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEach { item ->
-                val isSelected = selectedTab == item.tab
+                val isSelected       = selectedTab == item.tab
+                val interactionSource = remember { MutableInteractionSource() }
+
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .height(64.dp)
+                        // M3: minimum touch target 48dp per item
+                        .defaultMinSize(minHeight = 48.dp)
                         .clip(RoundedCornerShape(32.dp))
-                        .clickable { onTabSelected(item.tab) },
+                        // Ripple for M3 interaction state layers (hover 8%, press 12%)
+                        .indication(interactionSource, ripple(bounded = true))
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication        = null, // handled by .indication() above
+                        ) { onTabSelected(item.tab) }
+                        // M3 accessibility: Role.Tab + selected state
+                        .semantics {
+                            role     = Role.Tab
+                            selected = isSelected
+                        },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.label,
-                        tint = if (isSelected) cs.primary else cs.onSurfaceVariant,
-                        modifier = Modifier.size(27.dp),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = item.label,
-                        color = if (isSelected) cs.primary else cs.onSurfaceVariant,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.8.sp,
-                    )
-                    Spacer(Modifier.height(4.dp))
+                    // M3 active indicator: 64×32dp pill filled with primaryContainer
                     Box(
-                        modifier = Modifier
-                            .width(26.dp)
-                            .height(3.dp)
+                        modifier         = Modifier
+                            .width(64.dp)
+                            .height(32.dp)
                             .clip(RoundedCornerShape(50.dp))
-                            .background(if (isSelected) cs.primary else Color.Transparent),
+                            .background(
+                                if (isSelected) cs.primaryContainer
+                                else            Color.Transparent
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector        = item.icon,
+                            contentDescription = item.label,
+                            // M3: icon 24dp
+                            modifier           = Modifier.size(24.dp),
+                            tint               = if (isSelected) cs.onPrimaryContainer
+                                                 else            cs.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    // M3: labelMedium (12sp, Medium, 0.5sp tracking)
+                    Text(
+                        text  = item.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isSelected) cs.onSurface else cs.onSurfaceVariant,
                     )
                 }
             }

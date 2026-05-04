@@ -9,8 +9,12 @@ import com.focusfirst.data.focusFirstSettingsDataStore
 import com.focusfirst.data.db.FocusDatabase
 import com.focusfirst.data.db.MIGRATION_1_2
 import com.focusfirst.data.db.MIGRATION_2_3
+import com.focusfirst.data.db.MIGRATION_3_4
+import com.focusfirst.data.db.MIGRATION_4_5
+import com.focusfirst.data.db.MIGRATION_5_6
 import com.focusfirst.data.db.SessionDao
 import com.focusfirst.data.db.TaskDao
+import com.focusfirst.data.db.TagDao
 import com.focusfirst.data.remote.FirestoreRepository
 import com.focusfirst.data.repository.FocusGuardRepository
 import com.focusfirst.service.SoundManager
@@ -40,7 +44,7 @@ object AppModule {
         context,
         FocusDatabase::class.java,
         "focus_db",
-    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
      .build()
 
     @Provides
@@ -52,6 +56,11 @@ object AppModule {
     @Singleton
     fun provideTaskDao(database: FocusDatabase): TaskDao =
         database.taskDao()
+
+    @Provides
+    @Singleton
+    fun provideTagDao(database: FocusDatabase): TagDao =
+        database.tagDao()
 
     @Provides
     @Singleton

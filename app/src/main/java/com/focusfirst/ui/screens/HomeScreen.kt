@@ -1,8 +1,11 @@
 package com.focusfirst.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,12 +35,19 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,9 +65,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -283,32 +294,36 @@ fun HomeScreen(
             )
         }
         Spacer(Modifier.height(28.dp))
-        Box(
-            modifier = Modifier
-                .size(78.dp)
-                .clip(CircleShape)
-                .background(cs.primary)
-                .clickable { fabAction() }
-                .semantics { contentDescription = fabLabel },
-            contentAlignment = Alignment.Center,
+        // M3 Standard FloatingActionButton (56dp) — compacted from Large (96dp)
+        // to fit the minimalist "Focused Void" aesthetic better.
+        FloatingActionButton(
+            onClick        = fabAction,
+            containerColor = cs.primary,
+            contentColor   = cs.onPrimary,
+            modifier       = Modifier.semantics { contentDescription = fabLabel },
         ) {
             Icon(
-                imageVector = fabIcon,
+                imageVector        = fabIcon,
                 contentDescription = fabLabel,
-                tint = cs.onPrimary,
-                modifier = Modifier.size(42.dp),
+                modifier           = Modifier.size(24.dp), // M3 Standard for Regular FAB (from material_design.skill)
             )
         }
-        AnimatedVisibility(visible = !timerState.isIdle) {
+        AnimatedVisibility(
+            visible = !timerState.isIdle,
+            // M3 Motion: Fade enter/exit at Medium2 duration (300ms) for
+            // appearing/disappearing elements per material_design_skills.md §6.4
+            enter = fadeIn(animationSpec = tween(durationMillis = 300)),
+            exit  = fadeOut(animationSpec = tween(durationMillis = 300)),
+        ) {
             IconButton(
-                onClick = { showStopDialog = true },
+                onClick  = { showStopDialog = true },
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Stop,
+                    imageVector        = Icons.Outlined.Stop,
                     contentDescription = "Stop session",
-                    tint = cs.onSurfaceVariant,
-                    modifier = Modifier.size(26.dp),
+                    tint               = cs.onSurfaceVariant,
+                    modifier           = Modifier.size(24.dp), // M3 icon in IconButton = 24dp
                 )
             }
         }
@@ -405,37 +420,40 @@ private fun TokiLogoMark(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * M3 SingleChoiceSegmentedButtonRow replaces the custom bordered pill Row.
+ * M3 Segmented Button spec: 40dp height, full-width pill per §7.1.
+ *
+ * Previous implementation used a custom Row at 66dp height with RoundedCornerShape(50dp)
+ * border — preserved below for reference:
+ * // Row(modifier = Modifier.fillMaxWidth().height(66.dp).border(1.dp, cs.outline,
+ * //     RoundedCornerShape(50.dp)).padding(6.dp), ...) { ModeSegment(...) ModeSegment(...) }
+ */
 @Composable
 private fun ModeSwitch(
-    selectedMode: TimerMode,
-    isTimerActive: Boolean,
+    selectedMode:   TimerMode,
+    isTimerActive:  Boolean,
     onModeSelected: (TimerMode) -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(66.dp)
-            .border(1.dp, cs.outline, RoundedCornerShape(50.dp))
-            .padding(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        ModeSegment(
-            icon = "🍅",
-            label = "Pomodoro",
-            selected = selectedMode == TimerMode.POMODORO,
-            enabled = !isTimerActive,
-            modifier = Modifier.weight(1f),
-            onClick = { onModeSelected(TimerMode.POMODORO) },
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        val modes = listOf(
+            TimerMode.POMODORO to "Pomodoro",
+            TimerMode.FLOW     to "Flow",
         )
-        ModeSegment(
-            icon = "🌊",
-            label = "Flow",
-            selected = selectedMode == TimerMode.FLOW,
-            enabled = !isTimerActive,
-            modifier = Modifier.weight(1f),
-            onClick = { onModeSelected(TimerMode.FLOW) },
-        )
+        modes.forEachIndexed { index, (mode, label) ->
+            SegmentedButton(
+                selected = selectedMode == mode,
+                onClick  = { if (!isTimerActive) onModeSelected(mode) },
+                shape    = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
+                enabled  = !isTimerActive,
+                label    = {
+                    Text(
+                        text  = label,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                },
+            )
+        }
     }
 }
 
@@ -471,55 +489,58 @@ private fun ModeSegment(
     }
 }
 
+/**
+ * M3 FilterChip replaces the custom pill Box for preset selection.
+ * M3 Chip spec: 32dp height, Small shape (8dp corners), secondaryContainer when selected §7.6.
+ *
+ * Previous implementation used custom Box(height=52dp, RoundedCornerShape(50dp)) with
+ * primary background when selected — preserved below for reference:
+ * // Box(modifier = Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(50dp))
+ * //     .background(if (selected) cs.primary else cs.surfaceContainerLow) ...)
+ */
 @Composable
 private fun DurationSelector(
     activePreset: IntervalPreset,
-    isRunning: Boolean,
-    enabled: Boolean,
-    onSelect: (IntervalPreset) -> Unit,
+    isRunning:    Boolean,
+    enabled:      Boolean,
+    onSelect:     (IntervalPreset) -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier              = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         IntervalPreset.entries.forEach { preset ->
-            val selected = preset == activePreset
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(if (selected) cs.primary else cs.surfaceContainerLow)
-                    .border(
-                        width = if (selected) 0.dp else 1.dp,
-                        color = if (enabled) cs.outline else cs.outline.copy(alpha = 0.55f),
-                        shape = RoundedCornerShape(50.dp),
+            FilterChip(
+                selected  = preset == activePreset,
+                onClick   = { if (enabled && !isRunning) onSelect(preset) },
+                label     = {
+                    Text(
+                        text  = "${preset.focusMinutes}m",
+                        style = MaterialTheme.typography.labelLarge,
                     )
-                    .clickable(enabled = enabled && !isRunning) { onSelect(preset) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "${preset.focusMinutes}m",
-                    color = when {
-                        selected -> cs.onPrimary
-                        enabled  -> cs.onSurfaceVariant
-                        else     -> cs.onSurfaceVariant.copy(alpha = 0.45f)
-                    },
-                    fontSize = 21.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                    maxLines = 1,
-                )
-            }
+                },
+                modifier  = Modifier.weight(1f),
+                enabled   = enabled && !isRunning,
+                colors    = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor         = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor             = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedLeadingIconColor       = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            )
         }
     }
 }
 
+// M3 Emphasized easing cubic bezier (0.2, 0.0, 0.0, 1.0) per material_design_skills.md §6.1
+// Duration: Medium2 (300ms) — standard mobile transition replacing the previous 800ms.
+// Previous: animationSpec = tween(durationMillis = 800)
+private val EmphasizedEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
 @Composable
 private fun TokiTimerFace(
-    timerState: TimerState,
+    timerState:   TimerState,
     selectedMode: TimerMode,
-    faceSize: Dp,
+    faceSize:     Dp,
 ) {
     val visualMode = if (timerState.isIdle) selectedMode else timerState.timerMode
     val targetProgress = if (timerState.isIdle && selectedMode == TimerMode.FLOW) {
@@ -528,9 +549,10 @@ private fun TokiTimerFace(
         timerState.progress
     }
     val animatedProgress by animateFloatAsState(
-        targetValue = targetProgress,
-        animationSpec = tween(durationMillis = 800),
-        label = "tokiTimerProgress",
+        targetValue    = targetProgress,
+        // M3 Emphasized easing, Medium2 (300ms) — was tween(800)
+        animationSpec  = tween(durationMillis = 300, easing = EmphasizedEasing),
+        label          = "tokiTimerProgress",
     )
     val displayTime = if (timerState.isIdle && selectedMode == TimerMode.FLOW) {
         "45:00"
@@ -613,11 +635,11 @@ private fun TokiTimerFace(
 
 @Composable
 private fun OutlineActionPill(
-    icon: ImageVector,
-    label: String,
+    icon:               ImageVector,
+    label:              String,
     contentDescription: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+    modifier:           Modifier = Modifier,
+    onClick:            () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     Row(
@@ -627,24 +649,27 @@ private fun OutlineActionPill(
             .border(1.dp, cs.outline, RoundedCornerShape(50.dp))
             .clickable { onClick() }
             .padding(horizontal = 18.dp)
-            .semantics { this.contentDescription = contentDescription },
+            // M3 Accessibility: Role.Button so TalkBack announces this as a button
+            .semantics {
+                this.contentDescription = contentDescription
+                role = Role.Button
+            },
         horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment     = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = icon,
+            imageVector        = icon,
             contentDescription = null,
-            tint = cs.onSurface,
-            modifier = Modifier.size(25.dp),
+            tint               = cs.onSurface,
+            modifier           = Modifier.size(25.dp),
         )
         Spacer(Modifier.width(12.dp))
         Text(
-            text = label,
-            color = cs.onSurface,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
+            text     = label,
+            style    = MaterialTheme.typography.bodyLarge,
+            color    = cs.onSurface,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         )
     }
 }
@@ -701,36 +726,31 @@ private fun MetricsRow(
 
 @Composable
 private fun MetricCard(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
+    label:           String,
+    value:           String,
+    modifier:        Modifier = Modifier,
     supportingContent: @Composable () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     Column(
         modifier = modifier
-            .height(112.dp)
-            .clip(RoundedCornerShape(18.dp))
+            // M3 Card shape: Medium = 12dp (was 18dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(cs.surfaceContainerLow)
-            .border(1.dp, cs.outline, RoundedCornerShape(18.dp))
-            .padding(18.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+            .border(1.dp, cs.outline, RoundedCornerShape(12.dp))
+            .padding(16.dp), // M3 card internal padding = 16dp
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = label,
-            color = cs.onSurfaceVariant,
-            fontSize = 14.sp,
-            lineHeight = 16.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 2.sp,
+            text     = label,
+            style    = MaterialTheme.typography.labelMedium,
+            color    = cs.onSurfaceVariant,
             maxLines = 1,
         )
         Text(
-            text = value,
-            color = cs.onSurface,
-            fontSize = 32.sp,
-            lineHeight = 34.sp,
-            fontWeight = FontWeight.Bold,
+            text     = value,
+            style    = MaterialTheme.typography.headlineMedium,
+            color    = cs.onSurface,
             maxLines = 1,
         )
         supportingContent()

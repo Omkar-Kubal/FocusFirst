@@ -13,6 +13,7 @@ import androidx.room.RoomDatabase
 import androidx.room.Update
 import androidx.sqlite.SQLiteConnection
 import com.focusfirst.data.model.TaskEntity
+import com.focusfirst.data.model.TagEntity
 import kotlinx.coroutines.flow.Flow
 
 // ============================================================================
@@ -189,6 +190,12 @@ interface TaskDao {
 
     @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 0")
     fun observeActiveCount(): Flow<Int>
+
+    @Query("SELECT * FROM tasks WHERE dueDate >= :startOfDay AND dueDate <= :endOfDay ORDER BY dueTime ASC")
+    fun observeTasksForDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE (dueDate < :todayStart AND isCompleted = 0) OR (dueDate < :todayStart AND status != 'DONE') ORDER BY dueDate DESC")
+    fun observeOverdueTasks(todayStart: Long): Flow<List<TaskEntity>>
 }
 
 // ============================================================================
@@ -226,6 +233,43 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/**
+ * Version 3 → 4: adds description, status, dueDate, and dueTime to tasks table.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare("ALTER TABLE tasks ADD COLUMN description TEXT NOT NULL DEFAULT ''").use { it.step() }
+        connection.prepare("ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'TODO'").use { it.step() }
+        connection.prepare("ALTER TABLE tasks ADD COLUMN dueDate INTEGER").use { it.step() }
+        connection.prepare("ALTER TABLE tasks ADD COLUMN dueTime INTEGER").use { it.step() }
+    }
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare("ALTER TABLE tasks ADD COLUMN durationMinutes INTEGER NOT NULL DEFAULT 25").use { it.step() }
+    }
+}
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
+            """
+            CREATE TABLE IF NOT EXISTS `tags` (
+                `name` TEXT PRIMARY KEY NOT NULL,
+                `colorHex` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        ).use { it.step() }
+        
+        // Insert default Focus tag
+        connection.prepare(
+            "INSERT OR IGNORE INTO `tags` (`name`, `colorHex`, `createdAt`) VALUES ('Focus', '#FF6C63FF', 0)"
+        ).use { it.step() }
+    }
+}
+
 // ============================================================================
 // Database
 // ============================================================================
@@ -239,11 +283,24 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
  *   Version 3 → adds isSynced column to sessions.
  */
 @Database(
-    entities     = [SessionEntity::class, TaskEntity::class],
-    version      = 3,
+    entities     = [SessionEntity::class, TaskEntity::class, TagEntity::class],
+    version      = 6,
     exportSchema = false,
 )
 abstract class FocusDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun taskDao(): TaskDao
+    abstract fun tagDao(): TagDao
+}
+
+@Dao
+interface TagDao {
+    @Query("SELECT * FROM tags ORDER BY createdAt ASC")
+    fun observeAllTags(): Flow<List<TagEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTag(tag: TagEntity)
+
+    @Delete
+    suspend fun deleteTag(tag: TagEntity)
 }

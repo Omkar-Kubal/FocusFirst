@@ -3,8 +3,8 @@ package com.focusfirst.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focusfirst.data.SettingsRepository
+import com.focusfirst.export.ExportManager
 import com.focusfirst.data.model.AmbientSound
-import com.focusfirst.data.model.PlanetSkin
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val exportManager: ExportManager
 ) : ViewModel() {
 
     val focusMinutes: StateFlow<Int> = settingsRepository.focusMinutes.stateIn(
@@ -215,16 +216,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    val planetSkin: StateFlow<PlanetSkin> = settingsRepository.planetSkin
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = PlanetSkin.EARTH,
-        )
-
-    fun updatePlanetSkin(skin: PlanetSkin) {
+    fun exportData() {
         viewModelScope.launch {
-            settingsRepository.updatePlanetSkin(skin)
+            exportManager.exportSessionsToCsv()
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.focusfirst.ui.components
 
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -75,23 +77,27 @@ fun TimerRing(
     val typography = MaterialTheme.typography
 
     // ── Progress animation ────────────────────────────────────────────────────
-    // tween(800) keeps the sweep visually smooth between 1-second ticks while
-    // always finishing before the next tick arrives (tick interval = 1 000 ms).
+    // M3 Emphasized easing (0.2, 0.0, 0.0, 1.0) at Medium2 duration (300ms)
+    // per material_design_skills.md §6.1. Previous: tween(800, LinearEasing).
     val animatedProgress by animateFloatAsState(
         targetValue   = timerState.progress,
-        animationSpec = tween(durationMillis = 800),
+        animationSpec = tween(
+            durationMillis = 300,
+            easing         = CubicBezierEasing(0.2f, 0f, 0f, 1f),
+        ),
         label         = "timerProgress",
     )
 
     // ── Pulse animation ───────────────────────────────────────────────────────
     // The infinite transition always runs; the pulse is only *drawn* while
     // isRunning, keeping the alpha compositor cost near-zero when idle.
+    // M3 Motion: FastOutSlowInEasing for organic breathing feel (was LinearEasing).
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlphaFraction by infiniteTransition.animateFloat(
         initialValue  = 0f,
         targetValue   = 1f,
         animationSpec = infiniteRepeatable(
-            animation  = tween(durationMillis = 1800, easing = LinearEasing),
+            animation  = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulseAlphaFraction",
