@@ -1,7 +1,6 @@
 package com.focusfirst.ui.screens
 
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -26,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Button
@@ -73,7 +71,7 @@ import com.focusfirst.viewmodel.FocusGuardViewModel
  *
  * Layout:
  *  1. Back navigation header
- *  2. Permission status section (Usage Access + Accessibility Service)
+ *  2. Permission status section (Usage Access)
  *  3. Preset quick-select chips
  *  4. Installed-app list with per-app block toggle
  *  5. Info note about scheduling
@@ -89,7 +87,6 @@ fun FocusGuardScreen(
     val installedApps        by viewModel.installedApps.collectAsStateWithLifecycle()
     val blockedApps          by viewModel.blockedApps.collectAsStateWithLifecycle()
     val appsLoading          by viewModel.appsLoading.collectAsStateWithLifecycle()
-    val isAccessibility      by viewModel.isAccessibilityEnabled.collectAsStateWithLifecycle()
     val hasUsage             by viewModel.hasUsagePermission.collectAsStateWithLifecycle()
 
     // Re-check permissions every time this screen resumes (user may have just
@@ -176,23 +173,9 @@ fun FocusGuardScreen(
             )
         }
 
-        item {
-            PermissionCard(
-                icon        = Icons.Outlined.Lock,
-                title       = "Accessibility Service",
-                description = "Lets Toki detect and interrupt blocked apps",
-                granted     = isAccessibility,
-                onGrant     = {
-                    context.startActivity(
-                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        }
-                    )
-                },
-            )
-        }
+    // Removed Accessibility Service permission card
 
-        if (!hasUsage || !isAccessibility) {
+        if (!hasUsage) {
             item {
                 Surface(
                     modifier = Modifier
@@ -214,7 +197,7 @@ fun FocusGuardScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text     = "Both permissions must be granted for Focus Guard to work.",
+                            text     = "Usage Access permission must be granted for Focus Guard to work.",
                             fontSize = 12.sp,
                             color    = Color(0xFFFFA500).copy(alpha = 0.85f),
                         )

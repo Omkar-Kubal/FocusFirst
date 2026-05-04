@@ -1,10 +1,6 @@
 package com.focusfirst.ui.screens
 
-import android.app.Activity
-import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -46,7 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.preference.PreferenceManager
-import com.focusfirst.service.FocusGuardAccessibilityService
+import com.focusfirst.data.repository.FocusGuardRepository
 import com.focusfirst.ui.theme.FocusFirstTheme
 import kotlinx.coroutines.delay
 
@@ -107,13 +103,13 @@ class BlockedActivity : ComponentActivity() {
 
     private fun readRemainingSeconds(): Int {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        return prefs.getInt(FocusGuardAccessibilityService.PREF_REMAINING_SECONDS, 0)
+        return prefs.getInt(FocusGuardRepository.PREF_REMAINING_SECONDS, 0)
     }
 
     private fun deactivateFocusGuard() {
         PreferenceManager.getDefaultSharedPreferences(this)
             .edit()
-            .putBoolean(FocusGuardAccessibilityService.PREF_FOCUS_GUARD_ACTIVE, false)
+            .putBoolean(FocusGuardRepository.PREF_FOCUS_GUARD_ACTIVE, false)
             .apply()
     }
 }

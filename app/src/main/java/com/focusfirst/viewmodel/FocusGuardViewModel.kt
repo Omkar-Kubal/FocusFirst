@@ -3,13 +3,11 @@ package com.focusfirst.viewmodel
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
-import android.provider.Settings
-import android.view.accessibility.AccessibilityManager
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focusfirst.data.model.AppInfo
 import com.focusfirst.data.repository.FocusGuardRepository
-import com.focusfirst.service.FocusGuardAccessibilityService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -60,9 +58,6 @@ class FocusGuardViewModel @Inject constructor(
         )
 
     // ── Permission flags ──────────────────────────────────────────────────────
-
-    private val _isAccessibilityEnabled = MutableStateFlow(false)
-    val isAccessibilityEnabled: StateFlow<Boolean> = _isAccessibilityEnabled.asStateFlow()
 
     private val _hasUsagePermission = MutableStateFlow(false)
     val hasUsagePermission: StateFlow<Boolean> = _hasUsagePermission.asStateFlow()
@@ -140,8 +135,7 @@ class FocusGuardViewModel @Inject constructor(
 
     /** Re-check permission status (call from onResume). */
     fun refreshPermissions() {
-        _isAccessibilityEnabled.value = checkAccessibilityEnabled()
-        _hasUsagePermission.value     = checkUsagePermission()
+        _hasUsagePermission.value = checkUsagePermission()
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -174,15 +168,7 @@ class FocusGuardViewModel @Inject constructor(
         }
     }
 
-    private fun checkAccessibilityEnabled(): Boolean {
-        val am = application.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = Settings.Secure.getString(
-            application.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ) ?: return false
-        val serviceId = "${application.packageName}/${FocusGuardAccessibilityService::class.java.name}"
-        return enabledServices.split(":").any { it.equals(serviceId, ignoreCase = true) }
-    }
+
 
     private fun checkUsagePermission(): Boolean {
         return runCatching<Boolean> {

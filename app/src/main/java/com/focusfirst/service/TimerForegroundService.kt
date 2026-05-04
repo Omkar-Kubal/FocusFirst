@@ -11,6 +11,11 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
+import androidx.preference.PreferenceManager
+import com.focusfirst.data.repository.FocusGuardRepository
+import com.focusfirst.ui.screens.BlockedActivity
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -253,6 +258,8 @@ class TimerForegroundService : Service() {
                 delay(1_000L)
                 remainingSeconds--
                 updateNotification()
+                
+                if (remainingSeconds % 2 == 0) pollFocusGuard()
             }
             if (isActive) {
                 isRunning = false
@@ -273,6 +280,54 @@ class TimerForegroundService : Service() {
                 delay(1_000L)
                 elapsedSeconds++
                 updateNotification()
+                
+                if (elapsedSeconds % 2 == 0) pollFocusGuard()
+            }
+        }
+    }
+
+    // ========================================================================
+    // Focus Guard Poller
+    // ========================================================================
+
+    private fun pollFocusGuard() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val isActive = prefs.getBoolean(FocusGuardRepository.PREF_FOCUS_GUARD_ACTIVE, false)
+        if (!isActive) return
+
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return
+        val endTime = System.currentTimeMillis()
+        val startTime = endTime - 1000 * 10 // Look back 10 seconds
+        val events = usageStatsManager.queryEvents(startTime, endTime)
+        
+        val event = UsageEvents.Event()
+        var foregroundApp: String? = null
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                foregroundApp = event.packageName
+            }
+        }
+
+        if (foregroundApp != null && foregroundApp != packageName && foregroundApp != "com.android.systemui" && foregroundApp != "android") {
+            val blockedApps = prefs.getStringSet(FocusGuardRepository.PREF_BLOCKED_APPS, emptySet()) ?: emptySet()
+            if (foregroundApp in blockedApps) {
+                Log.d("FocusGuard", "Blocked app detected: $foregroundApp")
+                // Show blocked overlay
+                val intent = Intent(this, BlockedActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra(BlockedActivity.EXTRA_BLOCKED_PACKAGE, foregroundApp)
+                }
+                startActivity(intent)
+                
+                // Kick to home screen
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(homeIntent)
             }
         }
     }

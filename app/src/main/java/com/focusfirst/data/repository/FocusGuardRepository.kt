@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.preference.PreferenceManager
-import com.focusfirst.service.FocusGuardAccessibilityService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -21,8 +20,7 @@ import javax.inject.Singleton
  * Storage strategy:
  *   • DataStore: canonical storage — UI reads from here (Flow-based reactive)
  *   • SharedPreferences: mirror written on every mutation so the
- *     AccessibilityService (which may run in a different class-loader context)
- *     can read the list synchronously without a coroutine.
+ *     ForegroundService can read the list synchronously without a coroutine.
  */
 @Singleton
 class FocusGuardRepository @Inject constructor(
@@ -31,6 +29,10 @@ class FocusGuardRepository @Inject constructor(
 ) {
 
     companion object {
+        const val PREF_FOCUS_GUARD_ACTIVE = "focus_guard_active"
+        const val PREF_BLOCKED_APPS = "blocked_apps"
+        const val PREF_REMAINING_SECONDS = "focus_guard_remaining_seconds"
+
         /** Pipe-separated package names, e.g. "com.instagram.android|com.twitter.android" */
         val KEY_BLOCKED_APPS = stringPreferencesKey("focus_guard_blocked_apps")
     }
@@ -75,7 +77,7 @@ class FocusGuardRepository @Inject constructor(
     private fun mirrorToSharedPrefs(packages: Set<String>) {
         PreferenceManager.getDefaultSharedPreferences(context)
             .edit()
-            .putStringSet(FocusGuardAccessibilityService.PREF_BLOCKED_APPS, packages)
+            .putStringSet(PREF_BLOCKED_APPS, packages)
             .apply()
     }
 }

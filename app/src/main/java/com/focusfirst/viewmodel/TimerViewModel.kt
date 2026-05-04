@@ -25,7 +25,6 @@ import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
 import com.focusfirst.data.remote.FirestoreRepository
 import com.focusfirst.data.repository.FocusGuardRepository
-import com.focusfirst.service.FocusGuardAccessibilityService
 import com.focusfirst.service.SoundManager
 import com.focusfirst.service.TimerAlarmWorker
 import com.focusfirst.service.TimerForegroundService
@@ -669,8 +668,8 @@ class TimerViewModel @Inject constructor(
     private fun setFocusGuardActive(active: Boolean, remainingSeconds: Int) {
         PreferenceManager.getDefaultSharedPreferences(application)
             .edit()
-            .putBoolean(FocusGuardAccessibilityService.PREF_FOCUS_GUARD_ACTIVE, active)
-            .putInt(FocusGuardAccessibilityService.PREF_REMAINING_SECONDS, remainingSeconds)
+            .putBoolean(FocusGuardRepository.PREF_FOCUS_GUARD_ACTIVE, active)
+            .putInt(FocusGuardRepository.PREF_REMAINING_SECONDS, remainingSeconds)
             .apply()
     }
 
