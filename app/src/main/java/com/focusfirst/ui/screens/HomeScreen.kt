@@ -278,19 +278,19 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            OutlineActionPill(
-                icon = Icons.Outlined.MusicNote,
-                label = if (ambientSound == AmbientSound.NONE) "Add sound" else ambientSound.displayName,
+            IconActionPill(
+                icon               = Icons.Outlined.MusicNote,
+                active             = ambientSound != AmbientSound.NONE,
                 contentDescription = "Select ambient sound",
-                modifier = Modifier.weight(1f),
-                onClick = { showSoundSheet = true },
+                modifier           = Modifier.weight(1f),
+                onClick            = { showSoundSheet = true },
             )
-            OutlineActionPill(
-                icon = Icons.Outlined.TaskAlt,
-                label = selectedTask?.title ?: "No task",
+            IconActionPill(
+                icon               = Icons.Outlined.TaskAlt,
+                active             = selectedTask != null,
                 contentDescription = "Select task",
-                modifier = Modifier.weight(1f),
-                onClick = { showTaskSheet = true },
+                modifier           = Modifier.weight(1f),
+                onClick            = { showTaskSheet = true },
             )
         }
         Spacer(Modifier.height(28.dp))
@@ -634,42 +634,36 @@ private fun TokiTimerFace(
 }
 
 @Composable
-private fun OutlineActionPill(
-    icon:               ImageVector,
-    label:              String,
+private fun IconActionPill(
+    icon:               androidx.compose.ui.graphics.vector.ImageVector,
+    active:             Boolean,
     contentDescription: String,
     modifier:           Modifier = Modifier,
     onClick:            () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    Row(
+    Box(
         modifier = modifier
             .height(54.dp)
             .clip(RoundedCornerShape(50.dp))
-            .border(1.dp, cs.outline, RoundedCornerShape(50.dp))
+            .border(
+                width = 1.dp,
+                color = if (active) cs.primary else cs.outline,
+                shape = RoundedCornerShape(50.dp),
+            )
+            .background(
+                if (active) cs.primary.copy(alpha = 0.08f)
+                else        Color.Transparent
+            )
             .clickable { onClick() }
-            .padding(horizontal = 18.dp)
-            // M3 Accessibility: Role.Button so TalkBack announces this as a button
-            .semantics {
-                this.contentDescription = contentDescription
-                role = Role.Button
-            },
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment     = Alignment.CenterVertically,
+            .semantics { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector        = icon,
             contentDescription = null,
-            tint               = cs.onSurface,
-            modifier           = Modifier.size(25.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text     = label,
-            style    = MaterialTheme.typography.bodyLarge,
-            color    = cs.onSurface,
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            tint               = if (active) cs.primary else cs.onSurfaceVariant,
+            modifier           = Modifier.size(24.dp),
         )
     }
 }

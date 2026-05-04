@@ -373,14 +373,13 @@ private fun FocusBottomNav(
             .fillMaxWidth()
             .background(cs.background)
             .padding(horizontal = 24.dp)
-            .padding(bottom = 18.dp, top = 8.dp),
+            .padding(bottom = 16.dp, top = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // M3 NavigationBar height = 80dp
-                .height(80.dp)
+                .height(72.dp)
                 .clip(RoundedCornerShape(50.dp))
                 .background(cs.surfaceContainerLow)
                 .border(1.dp, cs.outline, RoundedCornerShape(50.dp))
@@ -389,34 +388,29 @@ private fun FocusBottomNav(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEach { item ->
-                val isSelected       = selectedTab == item.tab
+                val isSelected        = selectedTab == item.tab
                 val interactionSource = remember { MutableInteractionSource() }
 
-                Column(
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        // M3: minimum touch target 48dp per item
                         .defaultMinSize(minHeight = 48.dp)
                         .clip(RoundedCornerShape(32.dp))
-                        // Ripple for M3 interaction state layers (hover 8%, press 12%)
                         .indication(interactionSource, ripple(bounded = true))
                         .clickable(
                             interactionSource = interactionSource,
-                            indication        = null, // handled by .indication() above
+                            indication        = null,
                         ) { onTabSelected(item.tab) }
-                        // M3 accessibility: Role.Tab + selected state
                         .semantics {
                             role     = Role.Tab
                             selected = isSelected
                         },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+                    contentAlignment = Alignment.Center,
                 ) {
-                    // M3 active indicator: 64×32dp pill filled with primaryContainer
                     Box(
-                        modifier         = Modifier
+                        modifier = Modifier
                             .width(64.dp)
-                            .height(32.dp)
+                            .height(40.dp)
                             .clip(RoundedCornerShape(50.dp))
                             .background(
                                 if (isSelected) cs.primaryContainer
@@ -427,19 +421,11 @@ private fun FocusBottomNav(
                         Icon(
                             imageVector        = item.icon,
                             contentDescription = item.label,
-                            // M3: icon 24dp
-                            modifier           = Modifier.size(24.dp),
+                            modifier           = Modifier.size(26.dp),
                             tint               = if (isSelected) cs.onPrimaryContainer
                                                  else            cs.onSurfaceVariant,
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
-                    // M3: labelMedium (12sp, Medium, 0.5sp tracking)
-                    Text(
-                        text  = item.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (isSelected) cs.onSurface else cs.onSurfaceVariant,
-                    )
                 }
             }
         }
