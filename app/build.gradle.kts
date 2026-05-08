@@ -52,6 +52,7 @@ dependencies {
     // ── Core ──────────────────────────────────────────────────────────────
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.localbroadcastmanager)
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
     implementation(libs.androidx.lifecycle.runtime.ktx)

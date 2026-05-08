@@ -37,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -187,12 +189,26 @@ fun TaskSheet(
             }
 
             if (tasks.isEmpty()) {
-                Box(
+                Column(
                     modifier         = Modifier
                         .fillMaxWidth()
                         .padding(24.dp),
-                    contentAlignment = Alignment.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1A1A1A)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter            = androidx.compose.ui.res.painterResource(id = com.focusfirst.R.drawable.ic_mascot_plan),
+                            contentDescription = "Plan your tasks",
+                            modifier           = Modifier.size(96.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
                     Text(
                         text     = "No tasks yet — add one above",
                         fontSize = 13.sp,

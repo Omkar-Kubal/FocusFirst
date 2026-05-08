@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +76,12 @@ import java.util.Locale
 private val TokiGreen     = Color(0xFF1A9E5F)
 // M3 Card shape: Medium token = 12dp (was 18dp) per material_design_skills.md §3.2
 private val TokiCardShape = RoundedCornerShape(12.dp)
+
+// Heatmap intensity colors — constants to avoid per-draw allocations
+private val HeatColor1 = Color(0xFF1A4A2A)
+private val HeatColor2 = Color(0xFF2D7A3D)
+private val HeatColor3 = Color(0xFF3A9A50)
+private val HeatColor4 = Color(0xFF4AAA60)
 
 // Backport of Modifier.grayscale() (added in Compose 1.8, not in BOM 2024.12.01)
 private fun Modifier.grayscale(): Modifier = drawWithContent {
@@ -104,16 +111,24 @@ fun StatsScreen(
     val badges         by badgeViewModel.badges.collectAsStateWithLifecycle()
     val isPro          by billingViewModel.isPro.collectAsStateWithLifecycle()
 
-    val weeklyTotal   = weeklySummary.sumOf { it.sessionCount }
-    val todayEpochDay = System.currentTimeMillis() / 86_400_000L
+    // Memoized so these don't recompute on every recomposition.
+    val weeklyTotal   = remember(weeklySummary) { weeklySummary.sumOf { it.sessionCount } }
+    val todayEpochDay = remember { System.currentTimeMillis() / 86_400_000L }
 
-    val daysChart = (6 downTo 0).map { offset ->
-        val day = todayEpochDay - offset
-        val row = weeklySummary.find { it.date == day }
-        Triple(day, row?.sessionCount ?: 0, row?.totalMinutes ?: 0)
+    val daysChart = remember(weeklySummary, todayEpochDay) {
+        val today = System.currentTimeMillis() / 86_400_000L
+        (6 downTo 0).map { offset ->
+            val day = today - offset
+            val row = weeklySummary.find { it.date == day }
+            Triple(day, row?.sessionCount ?: 0, row?.totalMinutes ?: 0)
+        }
     }
-    val maxSessions = daysChart.maxOfOrNull { it.second }.let { if (it != null && it > 0) it else 1 }
-    val maxMinutes  = daysChart.maxOfOrNull { it.third  }.let { if (it != null && it > 0) it else 1 }
+    val maxSessions = remember(daysChart) {
+        daysChart.maxOfOrNull { it.second }.let { if (it != null && it > 0) it else 1 }
+    }
+    val maxMinutes  = remember(daysChart) {
+        daysChart.maxOfOrNull { it.third  }.let { if (it != null && it > 0) it else 1 }
+    }
 
     var showMinutes by remember { mutableStateOf(false) }
 
@@ -400,8 +415,8 @@ private val MONTH_NAMES = listOf(
 
 @Composable
 private fun FocusHeatmapSection(allSessions: List<SessionEntity>) {
-    val completedCount = allSessions.count { it.wasCompleted }
-    val year           = Calendar.getInstance().get(Calendar.YEAR)
+    val completedCount = remember(allSessions) { allSessions.count { it.wasCompleted } }
+    val year           = remember { Calendar.getInstance().get(Calendar.YEAR) }
 
     TokiSectionCard {
         SectionTitle(
@@ -416,22 +431,40 @@ private fun FocusHeatmapSection(allSessions: List<SessionEntity>) {
 @Composable
 private fun FocusHeatmap(sessions: List<SessionEntity>) {
     val cs = MaterialTheme.colorScheme
-    val sessionsByDay = sessions
-        .filter { it.wasCompleted }
-        .groupBy { it.startedAt / 86_400_000L }
-        .mapValues { it.value.size }
+    val sessionsByDay = remember(sessions) {
+        sessions
+            .filter { it.wasCompleted }
+            .groupBy { it.startedAt / 86_400_000L }
+            .mapValues { it.value.size }
+    }
 
     val today       = System.currentTimeMillis() / 86_400_000L
     val weeksToShow = 26
-    val startDay    = today - weeksToShow * 7L
+    // +1 so the last rendered cell (week=25, dayOfWeek=6) lands exactly on today
+    val startDay    = today - weeksToShow * 7L + 1L
     val cellSize    = 11.dp
     val cellGap     = 2.dp
     val totalCell   = cellSize + cellGap
     val dayLabelW   = 20.dp
 
-    val cellFuture = cs.surfaceContainerLow
-    val cellZero   = cs.surfaceVariant
+    val cellFuture  = cs.surfaceContainerLow
+    val cellZero    = cs.surfaceVariant
     val todayBorder = cs.onSurface
+
+    // Precompute month-header labels once per startDay — avoids 26 Calendar
+    // allocations on every recomposition.
+    val weekHeaders: List<Pair<Boolean, String>> = remember(startDay) {
+        var lastMonth = -1
+        (0 until weeksToShow).map { week ->
+            val cal = Calendar.getInstance().apply {
+                timeInMillis = (startDay + week * 7L) * 86_400_000L
+            }
+            val month = cal.get(Calendar.MONTH)
+            val show  = month != lastMonth && cal.get(Calendar.DAY_OF_MONTH) <= 7
+            if (show) lastMonth = month
+            show to if (show) MONTH_NAMES[month] else ""
+        }
+    }
 
     Column {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
@@ -455,61 +488,69 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
                 }
             }
 
-            // Month labels + cell grid
+            // Month labels + single-Canvas cell grid
             Column {
+                // Header row — one fixed-width Box per column keeps labels
+                // pixel-aligned with the grid; text overflows visually rightward.
                 Row {
-                    var lastMonth = -1
-                    for (week in 0 until weeksToShow) {
-                        val weekEpochDay = startDay + week * 7L
-                        val cal          = Calendar.getInstance().apply {
-                            timeInMillis = weekEpochDay * 86_400_000L
-                        }
-                        val month      = cal.get(Calendar.MONTH)
-                        val dayOfMonth = cal.get(Calendar.DAY_OF_MONTH)
-                        if (month != lastMonth && dayOfMonth <= 7) {
-                            lastMonth = month
-                            Text(
-                                text     = MONTH_NAMES[month],
-                                fontSize = 9.sp,
-                                color    = cs.onSurfaceVariant,
-                                modifier = Modifier.width(totalCell * 4),
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.width(totalCell))
+                    weekHeaders.forEach { (show, label) ->
+                        Box(modifier = Modifier.width(totalCell)) {
+                            if (show) {
+                                Text(
+                                    text     = label,
+                                    fontSize = 9.sp,
+                                    color    = cs.onSurfaceVariant,
+                                    softWrap = false,
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(cellGap)) {
+                // All 26×7 = 182 cells drawn in one Canvas pass.
+                // Replaces 182 Box+clip+background+border layout nodes with
+                // simple GPU draw calls — eliminates the main layout overhead.
+                Canvas(
+                    modifier = Modifier
+                        .width(totalCell * weeksToShow - cellGap)
+                        .height(totalCell * 7 - cellGap),
+                ) {
+                    val cellPx   = cellSize.toPx()
+                    val stepPx   = cellPx + cellGap.toPx()
+                    val cornerPx = 2.dp.toPx()
+                    val strokePx = 0.8.dp.toPx()
+
                     for (week in 0 until weeksToShow) {
-                        Column(verticalArrangement = Arrangement.spacedBy(cellGap)) {
-                            for (dayOfWeek in 0..6) {
-                                val epochDay = startDay + (week * 7).toLong() + dayOfWeek
-                                val count    = sessionsByDay[epochDay] ?: 0
-                                val isToday  = epochDay == today
-                                val isFuture = epochDay > today
-
-                                val cellColor = when {
-                                    isFuture   -> cellFuture
-                                    count == 0 -> cellZero
-                                    count <= 2 -> Color(0xFF1A4A2A)
-                                    count <= 4 -> Color(0xFF2D7A3D)
-                                    count <= 6 -> Color(0xFF3A9A50)
-                                    else       -> Color(0xFF4AAA60)
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(cellSize)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(cellColor)
-                                        .then(
-                                            if (isToday) Modifier.border(
-                                                0.8.dp, todayBorder, RoundedCornerShape(2.dp),
-                                            ) else Modifier,
-                                        ),
+                        for (dayOfWeek in 0..6) {
+                            val epochDay  = startDay + week * 7L + dayOfWeek
+                            val count     = sessionsByDay[epochDay] ?: 0
+                            val isToday   = epochDay == today
+                            val isFuture  = epochDay > today
+                            val left      = week * stepPx
+                            val top       = dayOfWeek * stepPx
+                            val cellColor = when {
+                                isFuture   -> cellFuture
+                                count == 0 -> cellZero
+                                count <= 2 -> HeatColor1
+                                count <= 4 -> HeatColor2
+                                count <= 6 -> HeatColor3
+                                else       -> HeatColor4
+                            }
+                            drawRoundRect(
+                                color        = cellColor,
+                                topLeft      = Offset(left, top),
+                                size         = Size(cellPx, cellPx),
+                                cornerRadius = CornerRadius(cornerPx),
+                            )
+                            if (isToday) {
+                                drawRoundRect(
+                                    color        = todayBorder,
+                                    topLeft      = Offset(left, top),
+                                    size         = Size(cellPx, cellPx),
+                                    cornerRadius = CornerRadius(cornerPx),
+                                    style        = Stroke(strokePx),
                                 )
                             }
                         }
@@ -528,13 +569,7 @@ private fun FocusHeatmap(sessions: List<SessionEntity>) {
         ) {
             Text(text = "Less", fontSize = 9.sp, color = cs.onSurfaceVariant.copy(alpha = 0.7f))
             Spacer(modifier = Modifier.width(4.dp))
-            listOf(
-                cellZero,
-                Color(0xFF1A4A2A),
-                Color(0xFF2D7A3D),
-                Color(0xFF3A9A50),
-                Color(0xFF4AAA60),
-            ).forEach { color ->
+            listOf(cellZero, HeatColor1, HeatColor2, HeatColor3, HeatColor4).forEach { color ->
                 Spacer(modifier = Modifier.width(2.dp))
                 Box(
                     modifier = Modifier
@@ -609,7 +644,7 @@ private fun BarChartSection(
             days.forEachIndexed { index, (epochDay, sessions, minutes) ->
                 val isToday  = epochDay == todayEpochDay
                 val count    = if (showMinutes) minutes else sessions
-                val barColor = if (isToday) barPrimary else barPrimary.copy(alpha = 0.15f)
+                val barColor = if (isToday) barPrimary else barPrimary.copy(alpha = 0.45f)
                 val x        = index * (barWidth + gap)
 
                 if (count > 0) {
@@ -629,7 +664,7 @@ private fun BarChartSection(
                 } else {
                     val floorH = 3.dp.toPx()
                     drawRoundRect(
-                        color        = barPrimary.copy(alpha = 0.07f),
+                        color        = barPrimary.copy(alpha = 0.12f),
                         topLeft      = Offset(x, size.height - floorH),
                         size         = Size(barWidth, floorH),
                         cornerRadius = CornerRadius(floorH / 2f, floorH / 2f),
@@ -957,8 +992,7 @@ private fun BadgeCard(
     Surface(
         modifier = modifier
             .aspectRatio(0.85f)
-            .clickable(onClick = onClick)
-            .then(if (!badge.isUnlocked) Modifier.grayscale() else Modifier),
+            .clickable(onClick = onClick),
         color  = if (badge.isUnlocked) cs.surfaceContainerHigh else cs.surfaceContainerLow,
         shape  = RoundedCornerShape(14.dp),
         border = BorderStroke(

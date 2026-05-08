@@ -78,7 +78,7 @@ class BlockedActivity : ComponentActivity() {
         val remainingSeconds = readRemainingSeconds()
 
         setContent {
-            FocusFirstTheme(darkTheme = true, amoledMode = false) {
+            FocusFirstTheme(amoledMode = false) {
                 BlockedScreen(
                     blockedAppName   = blockedAppName,
                     initialRemaining = remainingSeconds,

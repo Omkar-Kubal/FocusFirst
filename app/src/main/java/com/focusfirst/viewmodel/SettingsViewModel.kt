@@ -55,12 +55,6 @@ class SettingsViewModel @Inject constructor(
         initialValue = true,
     )
 
-    val themeMode: StateFlow<String> = settingsRepository.themeMode.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = "System",
-    )
-
     val amoledMode: StateFlow<Boolean> = settingsRepository.amoledMode.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -153,6 +147,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    @Suppress("unused") // kept for DataStore backward-compat; no longer surfaced in UI
     fun updateThemeMode(value: String) {
         viewModelScope.launch {
             settingsRepository.update(SettingsRepository.KEY_THEME_MODE, value)

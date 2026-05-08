@@ -1,5 +1,7 @@
 package com.focusfirst.data.model
 
+import androidx.compose.runtime.Immutable
+
 // ── Timer Mode ────────────────────────────────────────────────────────────────
 
 /** Whether the user is in classic Pomodoro (count-down) or open-ended Flow (count-up) mode. */
@@ -24,6 +26,11 @@ enum class IntervalPreset(val label: String, val focusMinutes: Int) {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
+/**
+ * All fields are vals with stable/primitive types, so marking @Immutable lets
+ * Compose skip recomposing subtrees that receive an equal TimerState by value.
+ */
+@Immutable
 data class TimerState(
     val phase: TimerPhase = TimerPhase.FOCUS,
     val preset: IntervalPreset = IntervalPreset.CLASSIC,

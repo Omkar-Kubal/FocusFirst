@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Home Screen Layout
+         ═══════════════════════════════════════════════════════════════ -->
+    <dimen name="home_padding_horizontal">24dp</dimen>
+    <dimen name="home_padding_top">46dp</dimen>
+    <dimen name="home_padding_bottom">18dp</dimen>
+    <dimen name="home_space_header">34dp</dimen>
+    <dimen name="home_space_mode_switch">26dp</dimen>
+    <dimen name="home_space_duration_selector">22dp</dimen>
+    <dimen name="home_space_timer">28dp</dimen>
+    <dimen name="home_space_actions">28dp</dimen>
+    <dimen name="home_space_bottom_idle">30dp</dimen>
+    <dimen name="home_space_bottom_active">14dp</dimen>
+    <dimen name="home_action_pill_gap">14dp</dimen>
+    <dimen name="home_action_pill_height">54dp</dimen>
+    <dimen name="home_timer_max_size">330dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Timer Ring  (TokiTimerFace)
+         ═══════════════════════════════════════════════════════════════ -->
+    <dimen name="timer_ring_stroke">6dp</dimen>
+    <dimen name="timer_ring_inset">3dp</dimen>
+    <dimen name="timer_handle_radius">5dp</dimen>
+    <dimen name="timer_display_space">24dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Mascot  (TokiMascot)
+         ═══════════════════════════════════════════════════════════════ -->
+    <dimen name="mascot_float_amplitude">4dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Header
+         ═══════════════════════════════════════════════════════════════ -->
+    <dimen name="header_logo_size">50dp</dimen>
+    <dimen name="header_logo_title_gap">16dp</dimen>
+    <dimen name="header_settings_size">54dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Metric Cards
+         ═══════════════════════════════════════════════════════════════ -->
+    <dimen name="metric_card_corner">12dp</dimen>
+    <dimen name="metric_card_padding">16dp</dimen>
+    <dimen name="metric_card_gap">16dp</dimen>
+    <dimen name="metric_progress_height">6dp</dimen>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Common  (shared across screens)
+         ═══════════════════════════════════════════════════════════════ -->
+    <dimen name="icon_size_standard">24dp</dimen>
+    <dimen name="icon_size_settings">28dp</dimen>
+    <dimen name="stop_button_top_padding">8dp</dimen>
+
+</resources>

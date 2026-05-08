@@ -1,8 +1,8 @@
 package com.focusfirst.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -86,6 +86,10 @@ import com.focusfirst.data.model.TimerState
 import com.focusfirst.ui.components.BreakSuggestionSheet
 import com.focusfirst.ui.components.SoundSelectorSheet
 import com.focusfirst.ui.components.TaskSheet
+import com.focusfirst.ui.home.HomeDefaults
+import com.focusfirst.ui.mascot.TokiMascot
+import androidx.compose.ui.res.dimensionResource
+import com.focusfirst.R
 import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TaskViewModel
 import com.focusfirst.viewmodel.TimerViewModel
@@ -243,40 +247,40 @@ fun HomeScreen(
             .fillMaxSize()
             .background(cs.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(top = 46.dp, bottom = 18.dp),
+            .padding(horizontal = dimensionResource(R.dimen.home_padding_horizontal))
+            .padding(top = dimensionResource(R.dimen.home_padding_top), bottom = dimensionResource(R.dimen.home_padding_bottom)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         TokiHeader(onSettingsClick = onNavigateToSettings)
-        Spacer(Modifier.height(34.dp))
+        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_header)))
         ModeSwitch(
             selectedMode = selectedMode,
             isTimerActive = timerActive,
             onModeSelected = { selectedMode = it },
         )
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_mode_switch)))
         DurationSelector(
             activePreset = if (selectedMode == TimerMode.FLOW) IntervalPreset.FLOW else timerState.preset,
             isRunning = timerActive,
             enabled = selectedMode == TimerMode.POMODORO,
             onSelect = { viewModel.selectPreset(it) },
         )
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_duration_selector)))
         BoxWithConstraints(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            val timerSize = maxWidth.coerceAtMost(330.dp)
+            val timerSize = maxWidth.coerceAtMost(dimensionResource(R.dimen.home_timer_max_size))
             TokiTimerFace(
                 timerState = timerState,
                 selectedMode = selectedMode,
                 faceSize = timerSize,
             )
         }
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_timer)))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.home_action_pill_gap)),
         ) {
             IconActionPill(
                 icon               = Icons.Outlined.MusicNote,
@@ -293,7 +297,7 @@ fun HomeScreen(
                 onClick            = { showTaskSheet = true },
             )
         }
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_actions)))
         // M3 Standard FloatingActionButton (56dp) — compacted from Large (96dp)
         // to fit the minimalist "Focused Void" aesthetic better.
         FloatingActionButton(
@@ -305,29 +309,29 @@ fun HomeScreen(
             Icon(
                 imageVector        = fabIcon,
                 contentDescription = fabLabel,
-                modifier           = Modifier.size(24.dp), // M3 Standard for Regular FAB (from material_design.skill)
+                modifier           = Modifier.size(dimensionResource(R.dimen.icon_size_standard)),
             )
         }
         AnimatedVisibility(
             visible = !timerState.isIdle,
             // M3 Motion: Fade enter/exit at Medium2 duration (300ms) for
             // appearing/disappearing elements per material_design_skills.md §6.4
-            enter = fadeIn(animationSpec = tween(durationMillis = 300)),
-            exit  = fadeOut(animationSpec = tween(durationMillis = 300)),
+            enter = fadeIn(animationSpec = tween(HomeDefaults.TRANSITION_DURATION_MS)),
+            exit  = fadeOut(animationSpec = tween(HomeDefaults.TRANSITION_DURATION_MS)),
         ) {
             IconButton(
                 onClick  = { showStopDialog = true },
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = dimensionResource(R.dimen.stop_button_top_padding)),
             ) {
                 Icon(
                     imageVector        = Icons.Outlined.Stop,
                     contentDescription = "Stop session",
                     tint               = cs.onSurfaceVariant,
-                    modifier           = Modifier.size(24.dp), // M3 icon in IconButton = 24dp
+                    modifier           = Modifier.size(dimensionResource(R.dimen.icon_size_standard)),
                 )
             }
         }
-        Spacer(Modifier.height(if (timerState.isIdle) 30.dp else 14.dp))
+        Spacer(Modifier.height(if (timerState.isIdle) dimensionResource(R.dimen.home_space_bottom_idle) else dimensionResource(R.dimen.home_space_bottom_active)))
         MetricsRow(
             todayCount = todayCount,
             dailyGoal = dailyGoal,
@@ -343,8 +347,8 @@ private fun TokiHeader(onSettingsClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TokiLogoMark(Modifier.size(50.dp))
-        Spacer(Modifier.width(16.dp))
+        TokiLogoMark(Modifier.size(dimensionResource(R.dimen.header_logo_size)))
+        Spacer(Modifier.width(dimensionResource(R.dimen.header_logo_title_gap)))
         Text(
             text = "Toki",
             color = cs.onBackground,
@@ -355,7 +359,7 @@ private fun TokiHeader(onSettingsClick: () -> Unit) {
         Spacer(Modifier.weight(1f))
         Box(
             modifier = Modifier
-                .size(54.dp)
+                .size(dimensionResource(R.dimen.header_settings_size))
                 .clip(CircleShape)
                 .border(1.dp, cs.outline, CircleShape)
                 .clickable { onSettingsClick() }
@@ -366,7 +370,7 @@ private fun TokiHeader(onSettingsClick: () -> Unit) {
                 imageVector = Icons.Outlined.Settings,
                 contentDescription = "Settings",
                 tint = cs.onBackground,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(dimensionResource(R.dimen.icon_size_settings)),
             )
         }
     }
@@ -509,7 +513,7 @@ private fun DurationSelector(
         modifier              = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        IntervalPreset.entries.forEach { preset ->
+        IntervalPreset.entries.filter { it != IntervalPreset.FLOW }.forEach { preset ->
             FilterChip(
                 selected  = preset == activePreset,
                 onClick   = { if (enabled && !isRunning) onSelect(preset) },
@@ -548,12 +552,17 @@ private fun TokiTimerFace(
     } else {
         timerState.progress
     }
-    val animatedProgress by animateFloatAsState(
-        targetValue    = targetProgress,
-        // M3 Emphasized easing, Medium2 (300ms) — was tween(800)
-        animationSpec  = tween(durationMillis = 300, easing = EmphasizedEasing),
-        label          = "tokiTimerProgress",
-    )
+    // Animatable whose .value is read ONLY inside the Canvas draw lambda so the
+    // 60fps animation never triggers a Compose recomposition — only a draw-layer
+    // redraw (GPU only).  animateFloatAsState reads state at composition scope
+    // and caused TokiTimerFace to recompose at 60fps every tick.
+    val progressAnim = remember { Animatable(targetProgress) }
+    LaunchedEffect(targetProgress) {
+        progressAnim.animateTo(
+            targetValue   = targetProgress,
+            animationSpec = tween(durationMillis = 300, easing = EmphasizedEasing),
+        )
+    }
     val displayTime = if (timerState.isIdle && selectedMode == TimerMode.FLOW) {
         "45:00"
     } else {
@@ -566,70 +575,98 @@ private fun TokiTimerFace(
         else -> "FOCUS"
     }
 
+    val ringStroke    = dimensionResource(R.dimen.timer_ring_stroke)
+    val ringInset     = dimensionResource(R.dimen.timer_ring_inset)
+    val handleRadius  = dimensionResource(R.dimen.timer_handle_radius)
     val cs = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .size(faceSize)
-            .aspectRatio(1f),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokePx = 6.dp.toPx()
-            val inset = strokePx / 2f + 3.dp.toPx()
-            val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
-            val topLeft = Offset(inset, inset)
-            drawArc(
-                color = cs.surfaceVariant,
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(strokePx, cap = StrokeCap.Round),
-            )
-            if (animatedProgress > 0f) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(faceSize)
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Reading progressAnim.value here (inside draw lambda) registers as a
+                // draw-phase state observation.  Only the draw layer is invalidated on
+                // each animation frame — no Compose recomposition occurs.
+                val p        = progressAnim.value
+                val strokePx = ringStroke.toPx()
+                val inset    = strokePx / 2f + ringInset.toPx()
+                val arcSize  = Size(size.width - inset * 2f, size.height - inset * 2f)
+                val topLeft  = Offset(inset, inset)
                 drawArc(
-                    color = cs.primary,
+                    color = cs.surfaceVariant,
                     startAngle = -90f,
-                    sweepAngle = 360f * animatedProgress,
+                    sweepAngle = 360f,
                     useCenter = false,
                     topLeft = topLeft,
                     size = arcSize,
                     style = Stroke(strokePx, cap = StrokeCap.Round),
                 )
+                if (p > 0f) {
+                    drawArc(
+                        color = cs.primary,
+                        startAngle = -90f,
+                        sweepAngle = 360f * p,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(strokePx, cap = StrokeCap.Round),
+                    )
+                }
+                val angle  = Math.toRadians((-90f + 360f * p).toDouble())
+                val radius = (size.minDimension - inset * 2f) / 2f
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val handleCenter = Offset(
+                    x = center.x + cos(angle).toFloat() * radius,
+                    y = center.y + sin(angle).toFloat() * radius,
+                )
+                drawCircle(
+                    color  = cs.primary,
+                    radius = handleRadius.toPx(),
+                    center = handleCenter,
+                )
             }
-            val angle = Math.toRadians((-90f + 360f * animatedProgress).toDouble())
-            val radius = (size.minDimension - inset * 2f) / 2f
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val handleCenter = Offset(
-                x = center.x + cos(angle).toFloat() * radius,
-                y = center.y + sin(angle).toFloat() * radius,
+
+            // Light circle so the original dark cat body is visible against it.
+            // Sized to fit inside the ring track:
+            //   inner_diameter ≈ faceSize − 2 × (stroke/2 + ringInset) − stroke = faceSize − 18dp
+            //   0.93 × faceSize gives comfortable clearance for all densities.
+            Box(
+                modifier = Modifier
+                    .size(faceSize * 0.93f)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1A1A1A)),
             )
-            drawCircle(
-                color = cs.primary,
-                radius = 5.dp.toPx(),
-                center = handleCenter,
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = displayTime,
-                color = cs.onBackground,
-                fontSize = 76.sp,
-                lineHeight = 80.sp,
-                fontWeight = FontWeight.ExtraBold,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = phaseLabel,
-                color = cs.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 7.sp,
-                maxLines = 1,
+            TokiMascot(
+                isIdle = timerState.isIdle,
+                isPaused = timerState.isPaused,
+                mode = visualMode,
+                phase = timerState.phase,
+                modifier = Modifier.fillMaxSize()
             )
         }
+
+        Spacer(Modifier.height(dimensionResource(R.dimen.timer_display_space)))
+
+        Text(
+            text = displayTime,
+            color = cs.onBackground,
+            fontSize = HomeDefaults.TIMER_TEXT_SIZE_SP.sp,
+            lineHeight = 80.sp,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = phaseLabel,
+            color = cs.onSurfaceVariant,
+            fontSize = HomeDefaults.PHASE_LABEL_SIZE_SP.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = HomeDefaults.PHASE_LETTER_SPACING_SP.sp,
+            maxLines = 1,
+        )
     }
 }
 
@@ -644,7 +681,7 @@ private fun IconActionPill(
     val cs = MaterialTheme.colorScheme
     Box(
         modifier = modifier
-            .height(54.dp)
+            .height(dimensionResource(R.dimen.home_action_pill_height))
             .clip(RoundedCornerShape(50.dp))
             .border(
                 width = 1.dp,
@@ -663,7 +700,7 @@ private fun IconActionPill(
             imageVector        = icon,
             contentDescription = null,
             tint               = if (active) cs.primary else cs.onSurfaceVariant,
-            modifier           = Modifier.size(24.dp),
+            modifier           = Modifier.size(dimensionResource(R.dimen.icon_size_standard)),
         )
     }
 }
@@ -679,7 +716,7 @@ private fun MetricsRow(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.metric_card_gap)),
     ) {
         val cs = MaterialTheme.colorScheme
         MetricCard(
@@ -687,17 +724,18 @@ private fun MetricsRow(
             value = "$todayCount / $goalDenominator",
             modifier = Modifier.weight(1f),
         ) {
+            val progressHeight = dimensionResource(R.dimen.metric_progress_height)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
+                    .height(progressHeight)
                     .clip(RoundedCornerShape(50.dp))
                     .background(cs.surfaceVariant),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progress)
-                        .height(6.dp)
+                        .height(progressHeight)
                         .clip(RoundedCornerShape(50.dp))
                         .background(cs.onSurface.copy(alpha = 0.3f)),
                 )
@@ -726,13 +764,14 @@ private fun MetricCard(
     supportingContent: @Composable () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val cardCorner  = dimensionResource(R.dimen.metric_card_corner)
+    val cardPadding = dimensionResource(R.dimen.metric_card_padding)
     Column(
         modifier = modifier
-            // M3 Card shape: Medium = 12dp (was 18dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(cardCorner))
             .background(cs.surfaceContainerLow)
-            .border(1.dp, cs.outline, RoundedCornerShape(12.dp))
-            .padding(16.dp), // M3 card internal padding = 16dp
+            .border(1.dp, cs.outline, RoundedCornerShape(cardCorner))
+            .padding(cardPadding),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(

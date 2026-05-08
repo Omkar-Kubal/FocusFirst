@@ -4,8 +4,6 @@ import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -37,25 +35,6 @@ private val DarkSurfaceContainer       = Color(0xFF161616)
 private val DarkSurfaceContainerHighest= Color(0xFF282828)
 
 // ============================================================================
-// Toki Light palette — "Daylight Instrument"
-// ============================================================================
-
-private val LightBackground             = Color(0xFFFFFFFF) // Pure Canvas White
-private val LightSurface                = Color(0xFFF2F2F2) // Cloud Surface
-private val LightSurfaceHigh            = Color(0xFFE4E4E4) // Pressed Ash
-private val LightSurfaceVariant         = Color(0xFFE8E8E8) // Pale Ash Track
-private val LightPrimary                = Color(0xFF0D0D0D) // Ink Black
-private val LightOnPrimary              = Color(0xFFF7F7F7) // Soft White Fill
-private val LightOnSurface              = Color(0xFF0D0D0D) // Ink Black
-private val LightOnSurfaceVariant       = Color(0xFF737373) // Muted Slate Text
-private val LightOutline                = Color(0xFFD4D4D4) // Fine Ash Stroke
-private val LightOutlineVariant         = Color(0xFFEAEAEA) // Subtle Divider (lighter)
-// Additional surface container slots
-private val LightSurfaceContainerLowest = Color(0xFFFFFFFF)
-private val LightSurfaceContainer       = Color(0xFFF6F6F6)
-private val LightSurfaceContainerHighest= Color(0xFFDEDEDE)
-
-// ============================================================================
 // The Focused Void — shared / brand colors
 // ============================================================================
 
@@ -74,24 +53,6 @@ object FocusColors {
 // ============================================================================
 // Static color schemes (B&W brand palette — fallback for API < 31)
 // ============================================================================
-
-private val LightColorScheme = lightColorScheme(
-    primary                     = LightPrimary,
-    onPrimary                   = LightOnPrimary,
-    background                  = LightBackground,
-    onBackground                = LightOnSurface,
-    surface                     = LightSurface,
-    onSurface                   = LightOnSurface,
-    surfaceContainerLowest      = LightSurfaceContainerLowest,
-    surfaceContainerLow         = LightSurface,
-    surfaceContainer            = LightSurfaceContainer,
-    surfaceContainerHigh        = LightSurfaceHigh,
-    surfaceContainerHighest     = LightSurfaceContainerHighest,
-    surfaceVariant              = LightSurfaceVariant,
-    onSurfaceVariant            = LightOnSurfaceVariant,
-    outline                     = LightOutline,
-    outlineVariant              = LightOutlineVariant,
-)
 
 private val DarkColorScheme = darkColorScheme(
     primary                     = DarkPrimary,
@@ -134,39 +95,29 @@ val LocalFocusDarkTheme = staticCompositionLocalOf { true }
 /**
  * Root Material 3 theme for FocusFirst (Toki).
  *
- * The black-and-white brand palette ("Focused Void") is the primary default.
- * Dynamic color (Material You) is preserved as an optional toggle for API 31+.
+ * Toki is a dark-only app. The Focused Void palette is always active.
+ * Dynamic color (Material You) is available as an optional toggle for API 31+.
  *
- * @param darkTheme    When false uses Daylight Instrument light colors.
- * @param amoledMode   When true **and** [darkTheme], forces pure-black surfaces.
+ * @param amoledMode   When true, forces pure-black surfaces for OLED screens.
  * @param dynamicColor Set true to use wallpaper-extracted colors on API 31+.
  *                     Defaults to false for the brand monochrome experience.
  */
 @Composable
 fun FocusFirstTheme(
-    darkTheme:    Boolean = true,
     amoledMode:   Boolean = false,
-    dynamicColor: Boolean = false, // Switched default to false for B&W theme
+    dynamicColor: Boolean = false,
     content:      @Composable () -> Unit,
 ) {
     val context = LocalContext.current
 
     val scheme = when {
-        // ── Dynamic color branch (Material You, API 31+) ─────────────────────
-        // Disabled by default to preserve the brand monochrome palette.
-        // Set dynamicColor = true in the call-site to enable.
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) dynamicDarkColorScheme(context)
-            else           dynamicLightColorScheme(context)
-        }
-
-        // ── Static brand palette (The Focused Void) ──────────────────────────
-        amoledMode && darkTheme -> DarkAmoledColorScheme
-        darkTheme               -> DarkColorScheme
-        else                    -> LightColorScheme
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            dynamicDarkColorScheme(context)
+        amoledMode -> DarkAmoledColorScheme
+        else       -> DarkColorScheme
     }
 
-    CompositionLocalProvider(LocalFocusDarkTheme provides darkTheme) {
+    CompositionLocalProvider(LocalFocusDarkTheme provides true) {
         MaterialTheme(
             colorScheme = scheme,
             typography  = Typography,

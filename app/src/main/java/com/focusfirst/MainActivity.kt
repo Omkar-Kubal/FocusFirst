@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
@@ -18,7 +19,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +47,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -132,6 +139,7 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
@@ -144,14 +152,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val billingViewModel: BillingViewModel = hiltViewModel()
-            val themeMode  by settingsViewModel.themeMode.collectAsStateWithLifecycle()
             val amoledMode by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
-            val systemDark = isSystemInDarkTheme()
-            val darkTheme  = when (themeMode) {
-                "Dark"  -> true
-                "Light" -> false
-                else    -> systemDark
-            }
 
             var selectedTab by rememberSaveable { mutableStateOf(Tab.HOME) }
 
@@ -163,7 +164,7 @@ class MainActivity : ComponentActivity() {
             val eulaAccepted by settingsViewModel.eulaAccepted
                 .collectAsStateWithLifecycle(false)
 
-            FocusFirstTheme(darkTheme = darkTheme, amoledMode = amoledMode) {
+            FocusFirstTheme(amoledMode = amoledMode) {
                 FocusFirstAppContent(
                     showNotificationRationale = showNotificationRationale,
                     selectedTab               = selectedTab,
@@ -316,13 +317,26 @@ private fun FocusFirstAppContent(
             )
         },
     ) { scaffoldPadding ->
-        Box(
+        AnimatedContent(
+            targetState   = selectedTab,
+            transitionSpec = {
+                val from = tabs.indexOfFirst { it.tab == initialState }
+                val to   = tabs.indexOfFirst { it.tab == targetState }
+                val dir  = if (to > from) 1 else -1
+                // Partial (1/3 width) slide + fade at 200ms feels snappier and
+                // reduces the time both screens are rendered simultaneously.
+                (slideInHorizontally(tween(200)) { it / 3 * dir } + fadeIn(tween(200)))
+                    .togetherWith(
+                        slideOutHorizontally(tween(200)) { -it / 3 * dir } + fadeOut(tween(150))
+                    )
+            },
+            label  = "tab_slide",
             modifier = Modifier
                 .fillMaxSize()
                 .background(scheme.background)
                 .padding(scaffoldPadding),
-        ) {
-            when (selectedTab) {
+        ) { tab ->
+            when (tab) {
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )

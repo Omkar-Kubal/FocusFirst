@@ -234,7 +234,7 @@ fun TimerRing(
 @Preview(name = "Focus — running", showBackground = true, backgroundColor = 0xFF1A1A1A)
 @Composable
 private fun PreviewFocusRunning() {
-    FocusFirstTheme(darkTheme = true) {
+    FocusFirstTheme {
         TimerRing(
             timerState = TimerState(
                 phase            = TimerPhase.FOCUS,
@@ -250,7 +250,7 @@ private fun PreviewFocusRunning() {
 @Preview(name = "Short break — paused", showBackground = true, backgroundColor = 0xFF1A1A1A)
 @Composable
 private fun PreviewShortBreakPaused() {
-    FocusFirstTheme(darkTheme = true) {
+    FocusFirstTheme {
         TimerRing(
             timerState = TimerState(
                 phase            = TimerPhase.SHORT_BREAK,
@@ -266,7 +266,7 @@ private fun PreviewShortBreakPaused() {
 @Preview(name = "Long break — idle / light", showBackground = true)
 @Composable
 private fun PreviewLongBreakLight() {
-    FocusFirstTheme(darkTheme = false) {
+    FocusFirstTheme {
         TimerRing(
             timerState = TimerState(
                 phase            = TimerPhase.LONG_BREAK,

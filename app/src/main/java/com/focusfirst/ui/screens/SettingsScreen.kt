@@ -111,7 +111,6 @@ fun SettingsScreen(
     val dailyGoal      by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
     val autoStart      by settingsViewModel.autoStart.collectAsStateWithLifecycle()
     val vibrateEnabled by settingsViewModel.vibrate.collectAsStateWithLifecycle()
-    val themeMode      by settingsViewModel.themeMode.collectAsStateWithLifecycle()
     val amoledMode     by settingsViewModel.amoledMode.collectAsStateWithLifecycle()
     val dndEnabled     by settingsViewModel.dndEnabled.collectAsStateWithLifecycle()
     val isPro          by billingViewModel.isPro.collectAsStateWithLifecycle()
@@ -407,25 +406,18 @@ fun SettingsScreen(
             SectionLabel("APPEARANCE")
             Spacer(Modifier.height(10.dp))
             SettingsSectionCard {
-                ThemeVisualSelector(
-                    themeMode = themeMode,
-                    onSelect  = { settingsViewModel.updateThemeMode(it) },
+                SettingsSwitchRow(
+                    icon     = Icons.Outlined.Timer,
+                    iconTint = Color(0xFF8E8E93),
+                    label    = "AMOLED black",
+                    subtitle = "Pure black — saves battery on OLED screens",
+                    proBadge = !isPro,
+                    checked  = amoledMode && isPro,
+                    onCheckedChange = { v ->
+                        if (isPro) settingsViewModel.updateAmoledMode(v)
+                        else billingViewModel.openUpgradeSheet()
+                    },
                 )
-                if (themeMode == "Dark" || (themeMode == "System" && dark)) {
-                    RowDivider()
-                    SettingsSwitchRow(
-                        icon     = Icons.Outlined.Timer,
-                        iconTint = Color(0xFF8E8E93),
-                        label    = "AMOLED black",
-                        subtitle = "Pure black — saves battery on OLED screens",
-                        proBadge = !isPro,
-                        checked  = amoledMode && isPro,
-                        onCheckedChange = { v ->
-                            if (isPro) settingsViewModel.updateAmoledMode(v)
-                            else billingViewModel.openUpgradeSheet()
-                        },
-                    )
-                }
             }
 
             // ── Cloud Sync ─────────────────────────────────────────────────
@@ -1098,95 +1090,3 @@ private fun ProFeaturesCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Theme selector
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun ThemeVisualSelector(themeMode: String, onSelect: (String) -> Unit) {
-    Row(
-        modifier              = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        ThemeOptionCard(
-            modifier  = Modifier.weight(1f),
-            label     = "LIGHT",
-            previewBg = Color(0xFFFFFFFF),
-            selected  = themeMode == "Light",
-            onClick   = { onSelect("Light") },
-        )
-        ThemeOptionCard(
-            modifier  = Modifier.weight(1f),
-            label     = "DARK",
-            previewBg = Color(0xFF000000),
-            selected  = themeMode == "Dark",
-            onClick   = { onSelect("Dark") },
-        )
-        ThemeOptionCard(
-            modifier  = Modifier.weight(1f),
-            label     = "SYSTEM",
-            previewBg = Color(0xFF8E8E93),
-            selected  = themeMode == "System",
-            onClick   = { onSelect("System") },
-        )
-    }
-}
-
-@Composable
-private fun ThemeOptionCard(
-    modifier:  Modifier,
-    label:     String,
-    previewBg: Color,
-    selected:  Boolean,
-    onClick:   () -> Unit,
-) {
-    val cs          = MaterialTheme.colorScheme
-    val borderWidth = if (selected) 2.dp else 1.dp
-    val borderColor = if (selected) cs.primary else cs.outline
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier            = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .border(borderWidth, borderColor, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(10.dp),
-    ) {
-        // Preview swatch with a mini pill to suggest the UI
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(previewBg),
-            contentAlignment = Alignment.Center,
-        ) {
-            // Mini play-button circle — visual hint of the app
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(
-                        if (previewBg == Color(0xFFFFFFFF)) Color(0xFF0D0D0D)
-                        else Color(0xFFF7F7F7)
-                    ),
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text          = label,
-            fontSize      = 10.sp,
-            fontWeight    = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-            color         = if (selected) cs.primary else cs.onSurfaceVariant,
-        )
-        // Selected dot indicator
-        Spacer(Modifier.height(4.dp))
-        Box(
-            modifier = Modifier
-                .size(4.dp)
-                .clip(RoundedCornerShape(50.dp))
-                .background(if (selected) cs.primary else Color.Transparent),
-        )
-    }
-}
