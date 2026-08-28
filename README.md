@@ -42,3 +42,5 @@ Release builds: R8 minification is currently **disabled** in `app/build.gradle.k
 ## License
 
 Add a license here if you publish the repo publicly.
+
+Version 2 wokring in progress
