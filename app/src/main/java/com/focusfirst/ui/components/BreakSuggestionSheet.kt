@@ -72,7 +72,7 @@ fun BreakSuggestionSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text       = if (isLongBreak) "Long Break \uD83C\uDF89" else "Break Time",
+                        text       = if (isLongBreak) "Long break" else "Short break",
                         fontSize   = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color      = Color.White,
@@ -95,7 +95,7 @@ fun BreakSuggestionSheet(
             Spacer(Modifier.height(20.dp))
 
             Text(
-                text          = "SUGGESTED ACTIVITIES",
+                text          = "REST IDEAS",
                 fontSize      = 10.sp,
                 color         = Color.White.copy(alpha = 0.5f),
                 letterSpacing = 1.5.sp,

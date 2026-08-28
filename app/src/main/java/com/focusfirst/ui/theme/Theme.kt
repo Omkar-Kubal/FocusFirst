@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -34,6 +35,16 @@ private val DarkSurfaceContainerLowest = Color(0xFF050505)
 private val DarkSurfaceContainer       = Color(0xFF161616)
 private val DarkSurfaceContainerHighest= Color(0xFF282828)
 
+private val LightBackground             = Color(0xFFF8F6F1)
+private val LightSurface                = Color(0xFFFFFCF7)
+private val LightSurfaceHigh            = Color(0xFFF0EDE6)
+private val LightSurfaceVariant         = Color(0xFFE1DDD3)
+private val LightPrimary                = Color(0xFF161616)
+private val LightOnPrimary              = Color(0xFFFFFFFF)
+private val LightOnSurface              = Color(0xFF161616)
+private val LightOnSurfaceVariant       = Color(0xFF666158)
+private val LightOutline                = Color(0xFFD5D0C7)
+
 // ============================================================================
 // The Focused Void — shared / brand colors
 // ============================================================================
@@ -48,6 +59,11 @@ object FocusColors {
     val FlowBlue          = Color(0xFFD1D1D6) // Soft grey accent
     /** Pro / marketing card — stays dark in both modes. */
     val ProCardBackground = Color(0xFF1A1A1A)
+    val FocusRed          = Color(0xFFE21B16)
+    val ShortBreak        = Color(0xFF8FAAA0)
+    val LongBreak         = Color(0xFF8C9EBC)
+    val Success           = Color(0xFF65A882)
+    val Warning           = Color(0xFFE1A95F)
 }
 
 // ============================================================================
@@ -82,6 +98,24 @@ private val DarkAmoledColorScheme = DarkColorScheme.copy(
     surfaceContainerHighest     = Color(0xFF161616),
 )
 
+private val LightColorScheme = lightColorScheme(
+    primary                     = LightPrimary,
+    onPrimary                   = LightOnPrimary,
+    background                  = LightBackground,
+    onBackground                = LightOnSurface,
+    surface                     = LightSurface,
+    onSurface                   = LightOnSurface,
+    surfaceContainerLowest      = Color.White,
+    surfaceContainerLow         = LightSurface,
+    surfaceContainer            = LightSurfaceHigh,
+    surfaceContainerHigh        = LightSurfaceHigh,
+    surfaceContainerHighest     = Color(0xFFE8E3DA),
+    surfaceVariant              = LightSurfaceVariant,
+    onSurfaceVariant            = LightOnSurfaceVariant,
+    outline                     = LightOutline,
+    outlineVariant              = LightOutline.copy(alpha = 0.65f),
+)
+
 // ============================================================================
 // CompositionLocal — whether the app shell is using the dark scheme
 // ============================================================================
@@ -106,6 +140,7 @@ val LocalFocusDarkTheme = staticCompositionLocalOf { true }
 fun FocusFirstTheme(
     amoledMode:   Boolean = false,
     dynamicColor: Boolean = false,
+    darkTheme:    Boolean = true,
     content:      @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -113,11 +148,12 @@ fun FocusFirstTheme(
     val scheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             dynamicDarkColorScheme(context)
+        !darkTheme -> LightColorScheme
         amoledMode -> DarkAmoledColorScheme
         else       -> DarkColorScheme
     }
 
-    CompositionLocalProvider(LocalFocusDarkTheme provides true) {
+    CompositionLocalProvider(LocalFocusDarkTheme provides darkTheme) {
         MaterialTheme(
             colorScheme = scheme,
             typography  = Typography,

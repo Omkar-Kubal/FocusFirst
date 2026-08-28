@@ -313,8 +313,7 @@ class TimerViewModel @Inject constructor(
     }
 
     /**
-     * Starts a Flow session — count-up timer with no automatic phase transitions.
-     * It now uses the same fixed timer surface as Pomodoro, with a 45-minute preset.
+     * Starts a Flow 45 session using the same fixed timer surface as Pomodoro.
      */
     fun startFlow() {
         val preset = IntervalPreset.FLOW
@@ -343,7 +342,6 @@ class TimerViewModel @Inject constructor(
         setFocusGuardActive(true, durationSeconds)
         TimerAlarmWorker.resetCompletionFlag(application)
         scheduleAlarm(application, durationSeconds, TimerPhase.FOCUS)
-        // No WorkManager alarm for Flow — the user decides when to stop.
         ContextCompat.startForegroundService(
             application,
             TimerForegroundService.buildStartIntent(application, durationSeconds, TimerPhase.FOCUS),

@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 
 // ── Timer Mode ────────────────────────────────────────────────────────────────
 
-/** Whether the user is in classic Pomodoro (count-down) or open-ended Flow (count-up) mode. */
+/** Whether the user is in classic Pomodoro or the streamlined 45-minute Flow mode. */
 enum class TimerMode { POMODORO, FLOW }
 
 // ── Phase ─────────────────────────────────────────────────────────────────────

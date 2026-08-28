@@ -1,22 +1,19 @@
 package com.focusfirst.ui.screens
 
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,20 +27,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -62,17 +55,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -84,19 +74,19 @@ import com.focusfirst.data.model.TimerMode
 import com.focusfirst.data.model.TimerPhase
 import com.focusfirst.data.model.TimerState
 import com.focusfirst.ui.components.BreakSuggestionSheet
+import com.focusfirst.ui.components.FocusedVoid
 import com.focusfirst.ui.components.SoundSelectorSheet
 import com.focusfirst.ui.components.TaskSheet
-import com.focusfirst.ui.home.HomeDefaults
+import com.focusfirst.ui.components.TokiChronoRing
+import com.focusfirst.ui.components.TokiIconButton
+import com.focusfirst.ui.components.TokiMetric
+import com.focusfirst.ui.components.TokiPill
+import com.focusfirst.ui.components.TokiSection
+import com.focusfirst.ui.home.TimerUiText
 import com.focusfirst.ui.mascot.TokiMascot
-import androidx.compose.ui.res.dimensionResource
-import com.focusfirst.R
 import com.focusfirst.viewmodel.SettingsViewModel
 import com.focusfirst.viewmodel.TaskViewModel
 import com.focusfirst.viewmodel.TimerViewModel
-import kotlin.math.cos
-import kotlin.math.sin
-
-private val PomodoroRed = Color(0xFFFF2727)
 
 @Composable
 fun HomeScreen(
@@ -113,6 +103,7 @@ fun HomeScreen(
     val dailyGoal by settingsViewModel.dailyGoal.collectAsStateWithLifecycle()
     val ambientSound by settingsViewModel.ambientSound.collectAsStateWithLifecycle()
     val ambientVolume by settingsViewModel.ambientVolume.collectAsStateWithLifecycle()
+    val sessionsBeforeLongBreak by settingsViewModel.sessionsBeforeLongBreak.collectAsStateWithLifecycle()
     val isPro by billingViewModel.isPro.collectAsStateWithLifecycle()
     val activeTasks by taskViewModel.activeTasks.collectAsStateWithLifecycle()
     val activeCount by taskViewModel.activeCount.collectAsStateWithLifecycle()
@@ -127,8 +118,8 @@ fun HomeScreen(
 
     val selectedTask = activeTasks.find { it.id == taskViewModel.selectedTaskId }
     val timerActive = timerState.isRunning || timerState.isPaused
+    val uiText = TimerUiText.from(timerState, selectedMode, sessionsBeforeLongBreak)
 
-    // Keep screen on while timer is running
     val window = (context as? ComponentActivity)?.window
     DisposableEffect(timerActive) {
         if (timerActive) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -141,9 +132,7 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.focusSessionCompleted.collect {
-            taskViewModel.selectedTaskId?.let { id ->
-                taskViewModel.incrementPomodoro(id)
-            }
+            taskViewModel.selectedTaskId?.let { id -> taskViewModel.incrementPomodoro(id) }
         }
     }
 
@@ -163,21 +152,14 @@ fun HomeScreen(
         }
     }
 
-    if (showStopDialog) {
-        AlertDialog(
-            onDismissRequest = { showStopDialog = false },
-            title = { Text("Stop session?") },
-            text = { Text("Your progress will be saved if you've focused for 30+ seconds.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.stop(); showStopDialog = false }) {
-                    Text("Stop")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStopDialog = false }) { Text("Keep going") }
-            },
-        )
-    }
+    StopDialog(
+        visible = showStopDialog,
+        onStop = {
+            viewModel.stop()
+            showStopDialog = false
+        },
+        onDismiss = { showStopDialog = false },
+    )
 
     if (showSoundSheet) {
         SoundSelectorSheet(
@@ -194,18 +176,9 @@ fun HomeScreen(
                 viewModel.updateVolume(volume)
             },
             onDismiss = { showSoundSheet = false },
-            onUpgradeClick = { showSoundSheet = false; billingViewModel.openUpgradeSheet() },
-        )
-    }
-
-    if (showBreakSheet) {
-        BreakSuggestionSheet(
-            isLongBreak = isLongBreak,
-            breakDurationSeconds = timerState.totalSeconds,
-            breakSessionCount = totalCompleted,
-            onDismiss = {
-                showBreakSheet = false
-                com.focusfirst.analytics.TokiAnalytics.logBreakSuggestionDismissed()
+            onUpgradeClick = {
+                showSoundSheet = false
+                billingViewModel.openUpgradeSheet()
             },
         )
     }
@@ -223,162 +196,434 @@ fun HomeScreen(
             onAddTask = { taskViewModel.addTask(it) },
             onDeleteTask = { taskViewModel.deleteTask(it) },
             onCompleteTask = { taskViewModel.completeTask(it) },
-            onUpgradeClick = { showTaskSheet = false; billingViewModel.openUpgradeSheet() },
+            onUpgradeClick = {
+                showTaskSheet = false
+                billingViewModel.openUpgradeSheet()
+            },
             onDismiss = { showTaskSheet = false },
         )
     }
 
-    val fabIcon = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow
-    val fabLabel = when {
-        timerState.isRunning -> "Pause"
-        timerState.isPaused -> "Resume"
-        else -> "Start"
+    if (showBreakSheet) {
+        BreakSuggestionSheet(
+            isLongBreak = isLongBreak,
+            breakDurationSeconds = timerState.totalSeconds,
+            breakSessionCount = totalCompleted,
+            onDismiss = {
+                showBreakSheet = false
+                com.focusfirst.analytics.TokiAnalytics.logBreakSuggestionDismissed()
+            },
+        )
     }
-    val fabAction: () -> Unit = when {
+
+    val primaryAction: () -> Unit = when {
         timerState.isRunning -> ({ viewModel.pause() })
         timerState.isPaused -> ({ viewModel.resume() })
         selectedMode == TimerMode.FLOW -> ({ viewModel.startFlow() })
         else -> ({ viewModel.start() })
     }
 
-    val cs = MaterialTheme.colorScheme
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(cs.background)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = dimensionResource(R.dimen.home_padding_horizontal))
-            .padding(top = dimensionResource(R.dimen.home_padding_top), bottom = dimensionResource(R.dimen.home_padding_bottom)),
+            .padding(horizontal = 22.dp)
+            .padding(top = 42.dp, bottom = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TokiHeader(onSettingsClick = onNavigateToSettings)
-        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_header)))
-        ModeSwitch(
-            selectedMode = selectedMode,
-            isTimerActive = timerActive,
-            onModeSelected = { selectedMode = it },
-        )
-        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_mode_switch)))
-        DurationSelector(
-            activePreset = if (selectedMode == TimerMode.FLOW) IntervalPreset.FLOW else timerState.preset,
-            isRunning = timerActive,
-            enabled = selectedMode == TimerMode.POMODORO,
-            onSelect = { viewModel.selectPreset(it) },
-        )
-        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_duration_selector)))
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            val timerSize = maxWidth.coerceAtMost(dimensionResource(R.dimen.home_timer_max_size))
-            TokiTimerFace(
-                timerState = timerState,
-                selectedMode = selectedMode,
-                faceSize = timerSize,
-            )
-        }
-        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_timer)))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.home_action_pill_gap)),
-        ) {
-            IconActionPill(
-                icon               = Icons.Outlined.MusicNote,
-                active             = ambientSound != AmbientSound.NONE,
-                contentDescription = "Select ambient sound",
-                modifier           = Modifier.weight(1f),
-                onClick            = { showSoundSheet = true },
-            )
-            IconActionPill(
-                icon               = Icons.Outlined.TaskAlt,
-                active             = selectedTask != null,
-                contentDescription = "Select task",
-                modifier           = Modifier.weight(1f),
-                onClick            = { showTaskSheet = true },
-            )
-        }
-        Spacer(Modifier.height(dimensionResource(R.dimen.home_space_actions)))
-        // M3 Standard FloatingActionButton (56dp) — compacted from Large (96dp)
-        // to fit the minimalist "Focused Void" aesthetic better.
-        FloatingActionButton(
-            onClick        = fabAction,
-            containerColor = cs.primary,
-            contentColor   = cs.onPrimary,
-            modifier       = Modifier.semantics { contentDescription = fabLabel },
-        ) {
-            Icon(
-                imageVector        = fabIcon,
-                contentDescription = fabLabel,
-                modifier           = Modifier.size(dimensionResource(R.dimen.icon_size_standard)),
-            )
-        }
-        AnimatedVisibility(
-            visible = !timerState.isIdle,
-            // M3 Motion: Fade enter/exit at Medium2 duration (300ms) for
-            // appearing/disappearing elements per material_design_skills.md §6.4
-            enter = fadeIn(animationSpec = tween(HomeDefaults.TRANSITION_DURATION_MS)),
-            exit  = fadeOut(animationSpec = tween(HomeDefaults.TRANSITION_DURATION_MS)),
-        ) {
-            IconButton(
-                onClick  = { showStopDialog = true },
-                modifier = Modifier.padding(top = dimensionResource(R.dimen.stop_button_top_padding)),
-            ) {
-                Icon(
-                    imageVector        = Icons.Outlined.Stop,
-                    contentDescription = "Stop session",
-                    tint               = cs.onSurfaceVariant,
-                    modifier           = Modifier.size(dimensionResource(R.dimen.icon_size_standard)),
-                )
-            }
-        }
-        Spacer(Modifier.height(if (timerState.isIdle) dimensionResource(R.dimen.home_space_bottom_idle) else dimensionResource(R.dimen.home_space_bottom_active)))
-        MetricsRow(
+        FocusTopBar(
+            timerActive = timerActive,
             todayCount = todayCount,
             dailyGoal = dailyGoal,
-            streakDays = streakDays,
+            onSettingsClick = onNavigateToSettings,
         )
+        Spacer(Modifier.height(if (timerActive) 22.dp else 28.dp))
+
+        if (timerActive) {
+            FocusActiveLayout(
+                timerState = timerState,
+                uiText = uiText,
+                selectedTaskTitle = selectedTask?.title,
+                ambientSound = ambientSound,
+                onSoundClick = { showSoundSheet = true },
+                onTaskClick = { showTaskSheet = true },
+                onStopClick = { showStopDialog = true },
+                onPrimaryAction = primaryAction,
+            )
+        } else {
+            FocusIdleLayout(
+                timerState = timerState,
+                selectedMode = selectedMode,
+                uiText = uiText,
+                todayCount = todayCount,
+                dailyGoal = dailyGoal,
+                streakDays = streakDays,
+                selectedTaskTitle = selectedTask?.title,
+                ambientSound = ambientSound,
+                onModeSelected = { selectedMode = it },
+                onPresetSelected = { viewModel.selectPreset(it) },
+                onSoundClick = { showSoundSheet = true },
+                onTaskClick = { showTaskSheet = true },
+                onPrimaryAction = primaryAction,
+            )
+        }
     }
 }
 
 @Composable
-private fun TokiHeader(onSettingsClick: () -> Unit) {
+private fun FocusTopBar(
+    timerActive: Boolean,
+    todayCount: Int,
+    dailyGoal: Int,
+    onSettingsClick: () -> Unit,
+) {
     val cs = MaterialTheme.colorScheme
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TokiLogoMark(Modifier.size(dimensionResource(R.dimen.header_logo_size)))
-        Spacer(Modifier.width(dimensionResource(R.dimen.header_logo_title_gap)))
-        Text(
-            text = "Toki",
-            color = cs.onBackground,
-            fontSize = 34.sp,
-            lineHeight = 38.sp,
-            fontWeight = FontWeight.ExtraBold,
-        )
-        Spacer(Modifier.weight(1f))
-        Box(
+        TokiLogoMark(Modifier.size(if (timerActive) 36.dp else 44.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (timerActive) "Toki" else "Focus",
+                color = cs.onBackground,
+                fontSize = if (timerActive) 22.sp else 30.sp,
+                lineHeight = if (timerActive) 26.sp else 34.sp,
+                fontWeight = FontWeight.ExtraBold,
+            )
+            if (!timerActive) {
+                Text(
+                    text = "$todayCount of ${dailyGoal.coerceAtLeast(1)} sessions today",
+                    color = cs.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        IconButton(
+            onClick = onSettingsClick,
             modifier = Modifier
-                .size(dimensionResource(R.dimen.header_settings_size))
+                .size(48.dp)
                 .clip(CircleShape)
                 .border(1.dp, cs.outline, CircleShape)
-                .clickable { onSettingsClick() }
                 .semantics { contentDescription = "Settings" },
-            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Outlined.Settings,
-                contentDescription = "Settings",
+                contentDescription = null,
                 tint = cs.onBackground,
-                modifier = Modifier.size(dimensionResource(R.dimen.icon_size_settings)),
             )
         }
     }
 }
 
 @Composable
+private fun FocusIdleLayout(
+    timerState: TimerState,
+    selectedMode: TimerMode,
+    uiText: TimerUiText,
+    todayCount: Int,
+    dailyGoal: Int,
+    streakDays: Int,
+    selectedTaskTitle: String?,
+    ambientSound: AmbientSound,
+    onModeSelected: (TimerMode) -> Unit,
+    onPresetSelected: (IntervalPreset) -> Unit,
+    onSoundClick: () -> Unit,
+    onTaskClick: () -> Unit,
+    onPrimaryAction: () -> Unit,
+) {
+    ModeAndPresetPicker(
+        selectedMode = selectedMode,
+        activePreset = if (selectedMode == TimerMode.FLOW) IntervalPreset.FLOW else timerState.preset,
+        onModeSelected = onModeSelected,
+        onPresetSelected = onPresetSelected,
+    )
+    Spacer(Modifier.height(22.dp))
+    FocusTimerBlock(timerState, selectedMode, uiText, selectedTaskTitle)
+    Spacer(Modifier.height(22.dp))
+    FocusControls(
+        primaryLabel = uiText.primaryAction,
+        primaryIcon = Icons.Filled.PlayArrow,
+        onPrimaryAction = onPrimaryAction,
+        showStop = false,
+        onStopClick = {},
+        ambientSound = ambientSound,
+        selectedTaskTitle = selectedTaskTitle,
+        onSoundClick = onSoundClick,
+        onTaskClick = onTaskClick,
+    )
+    Spacer(Modifier.height(22.dp))
+    TodayStrip(todayCount, dailyGoal, streakDays)
+}
+
+@Composable
+private fun FocusActiveLayout(
+    timerState: TimerState,
+    uiText: TimerUiText,
+    selectedTaskTitle: String?,
+    ambientSound: AmbientSound,
+    onSoundClick: () -> Unit,
+    onTaskClick: () -> Unit,
+    onStopClick: () -> Unit,
+    onPrimaryAction: () -> Unit,
+) {
+    PhaseChip(uiText.phase, uiText.cycle, timerState.isPaused)
+    Spacer(Modifier.height(18.dp))
+    FocusTimerBlock(timerState, timerState.timerMode, uiText, selectedTaskTitle)
+    Spacer(Modifier.height(20.dp))
+    FocusControls(
+        primaryLabel = uiText.primaryAction,
+        primaryIcon = if (timerState.isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+        onPrimaryAction = onPrimaryAction,
+        showStop = true,
+        onStopClick = onStopClick,
+        ambientSound = ambientSound,
+        selectedTaskTitle = selectedTaskTitle,
+        onSoundClick = onSoundClick,
+        onTaskClick = onTaskClick,
+    )
+}
+
+@Composable
+private fun ModeAndPresetPicker(
+    selectedMode: TimerMode,
+    activePreset: IntervalPreset,
+    onModeSelected: (TimerMode) -> Unit,
+    onPresetSelected: (IntervalPreset) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            TokiPill(
+                text = "Pomodoro",
+                selected = selectedMode == TimerMode.POMODORO,
+                modifier = Modifier.weight(1f),
+                onClick = { onModeSelected(TimerMode.POMODORO) },
+            )
+            TokiPill(
+                text = "Flow 45",
+                selected = selectedMode == TimerMode.FLOW,
+                modifier = Modifier.weight(1f),
+                onClick = { onModeSelected(TimerMode.FLOW) },
+            )
+        }
+        AnimatedVisibility(
+            visible = selectedMode == TimerMode.POMODORO,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                IntervalPreset.entries.filter { it != IntervalPreset.FLOW }.forEach { preset ->
+                    TokiPill(
+                        text = "${preset.focusMinutes}m",
+                        selected = activePreset == preset,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPresetSelected(preset) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhaseChip(phase: String, cycle: String, paused: Boolean) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(cs.surfaceContainerLow)
+            .border(1.dp, cs.outline, RoundedCornerShape(999.dp))
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (paused) "$phase paused - $cycle" else "$phase - $cycle",
+            color = cs.onSurface,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun FocusTimerBlock(
+    timerState: TimerState,
+    selectedMode: TimerMode,
+    uiText: TimerUiText,
+    selectedTaskTitle: String?,
+) {
+    val displayTime = if (timerState.isIdle && selectedMode == TimerMode.FLOW) {
+        "45:00"
+    } else {
+        timerState.displayTime
+    }
+    val visualPhase = when {
+        timerState.isIdle -> TimerPhase.FOCUS
+        else -> timerState.phase
+    }
+    val progress = if (timerState.isIdle && selectedMode == TimerMode.FLOW) 0f else timerState.progress
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        val ringSize = maxWidth.coerceAtMost(342.dp)
+        TokiChronoRing(
+            displayTime = displayTime,
+            phase = visualPhase,
+            progress = progress,
+            accessibilitySummary = uiText.accessibilitySummary,
+            ringSize = ringSize,
+            supportingText = uiText.phase,
+            isPaused = timerState.isPaused,
+        )
+        if (timerState.isIdle) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 22.dp)
+                    .size(74.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                TokiMascot(
+                    isIdle = true,
+                    isPaused = false,
+                    mode = selectedMode,
+                    phase = TimerPhase.FOCUS,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    Text(
+        text = selectedTaskTitle?.let { "Task: $it" } ?: uiText.nextAction,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun FocusControls(
+    primaryLabel: String,
+    primaryIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    onPrimaryAction: () -> Unit,
+    showStop: Boolean,
+    onStopClick: () -> Unit,
+    ambientSound: AmbientSound,
+    selectedTaskTitle: String?,
+    onSoundClick: () -> Unit,
+    onTaskClick: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TokiIconButton(
+            icon = Icons.Outlined.MusicNote,
+            label = if (ambientSound == AmbientSound.NONE) "Choose ambient sound" else "Ambient sound: ${ambientSound.displayName}",
+            active = ambientSound != AmbientSound.NONE,
+            onClick = onSoundClick,
+        )
+        Spacer(Modifier.width(18.dp))
+        Button(
+            onClick = onPrimaryAction,
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = cs.primary,
+                contentColor = cs.onPrimary,
+            ),
+            modifier = Modifier
+                .height(64.dp)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = primaryLabel
+                },
+        ) {
+            Icon(
+                imageVector = primaryIcon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(primaryLabel, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.width(18.dp))
+        if (showStop) {
+            TokiIconButton(
+                icon = Icons.Outlined.Close,
+                label = "Stop and save progress",
+                active = false,
+                onClick = onStopClick,
+            )
+        } else {
+            TokiIconButton(
+                icon = Icons.Outlined.TaskAlt,
+                label = selectedTaskTitle?.let { "Session task: $it" } ?: "Choose session task",
+                active = selectedTaskTitle != null,
+                onClick = onTaskClick,
+            )
+        }
+    }
+    if (showStop) {
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+            TokiIconButton(
+                icon = Icons.Outlined.TaskAlt,
+                label = selectedTaskTitle?.let { "Session task: $it" } ?: "Choose session task",
+                active = selectedTaskTitle != null,
+                onClick = onTaskClick,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TodayStrip(todayCount: Int, dailyGoal: Int, streakDays: Int) {
+    TokiSection(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            TokiMetric("today", "$todayCount/${dailyGoal.coerceAtLeast(1)}", Modifier.weight(1f))
+            TokiMetric("streak", if (streakDays == 0) "-" else "$streakDays days", Modifier.weight(1f))
+            TokiMetric("mode", "quiet", Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun StopDialog(
+    visible: Boolean,
+    onStop: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Stop and save progress?") },
+        text = { Text("Progress is saved after 30 seconds. You can resume with a fresh session anytime.") },
+        confirmButton = {
+            TextButton(onClick = onStop) { Text("Stop") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Keep focusing") }
+        },
+    )
+}
+
+@Composable
 private fun TokiLogoMark(modifier: Modifier = Modifier) {
-    val primary    = MaterialTheme.colorScheme.primary
+    val primary = MaterialTheme.colorScheme.primary
     val background = MaterialTheme.colorScheme.background
     Canvas(modifier = modifier) {
         val stroke = 4.dp.toPx()
@@ -417,375 +662,9 @@ private fun TokiLogoMark(modifier: Modifier = Modifier) {
             center = center,
         )
         drawCircle(
-            color = PomodoroRed,
+            color = FocusedVoid.FocusRed,
             radius = 4.dp.toPx(),
             center = Offset(center.x + radius * 0.64f, center.y - radius * 1.02f),
         )
-    }
-}
-
-/**
- * M3 SingleChoiceSegmentedButtonRow replaces the custom bordered pill Row.
- * M3 Segmented Button spec: 40dp height, full-width pill per §7.1.
- *
- * Previous implementation used a custom Row at 66dp height with RoundedCornerShape(50dp)
- * border — preserved below for reference:
- * // Row(modifier = Modifier.fillMaxWidth().height(66.dp).border(1.dp, cs.outline,
- * //     RoundedCornerShape(50.dp)).padding(6.dp), ...) { ModeSegment(...) ModeSegment(...) }
- */
-@Composable
-private fun ModeSwitch(
-    selectedMode:   TimerMode,
-    isTimerActive:  Boolean,
-    onModeSelected: (TimerMode) -> Unit,
-) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        val modes = listOf(
-            TimerMode.POMODORO to "Pomodoro",
-            TimerMode.FLOW     to "Flow",
-        )
-        modes.forEachIndexed { index, (mode, label) ->
-            SegmentedButton(
-                selected = selectedMode == mode,
-                onClick  = { if (!isTimerActive) onModeSelected(mode) },
-                shape    = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
-                enabled  = !isTimerActive,
-                label    = {
-                    Text(
-                        text  = label,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModeSegment(
-    icon: String,
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-    val textColor = if (selected) cs.onSurface else cs.onSurfaceVariant.copy(alpha = 0.7f)
-    Row(
-        modifier = modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(42.dp))
-            .background(if (selected) cs.surfaceContainerHigh else Color.Transparent)
-            .clickable(enabled = enabled) { onClick() },
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = icon, fontSize = 24.sp)
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 21.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
-    }
-}
-
-/**
- * M3 FilterChip replaces the custom pill Box for preset selection.
- * M3 Chip spec: 32dp height, Small shape (8dp corners), secondaryContainer when selected §7.6.
- *
- * Previous implementation used custom Box(height=52dp, RoundedCornerShape(50dp)) with
- * primary background when selected — preserved below for reference:
- * // Box(modifier = Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(50dp))
- * //     .background(if (selected) cs.primary else cs.surfaceContainerLow) ...)
- */
-@Composable
-private fun DurationSelector(
-    activePreset: IntervalPreset,
-    isRunning:    Boolean,
-    enabled:      Boolean,
-    onSelect:     (IntervalPreset) -> Unit,
-) {
-    Row(
-        modifier              = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        IntervalPreset.entries.filter { it != IntervalPreset.FLOW }.forEach { preset ->
-            FilterChip(
-                selected  = preset == activePreset,
-                onClick   = { if (enabled && !isRunning) onSelect(preset) },
-                label     = {
-                    Text(
-                        text  = "${preset.focusMinutes}m",
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                },
-                modifier  = Modifier.weight(1f),
-                enabled   = enabled && !isRunning,
-                colors    = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor         = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor             = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor       = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-            )
-        }
-    }
-}
-
-// M3 Emphasized easing cubic bezier (0.2, 0.0, 0.0, 1.0) per material_design_skills.md §6.1
-// Duration: Medium2 (300ms) — standard mobile transition replacing the previous 800ms.
-// Previous: animationSpec = tween(durationMillis = 800)
-private val EmphasizedEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-
-@Composable
-private fun TokiTimerFace(
-    timerState:   TimerState,
-    selectedMode: TimerMode,
-    faceSize:     Dp,
-) {
-    val visualMode = if (timerState.isIdle) selectedMode else timerState.timerMode
-    val targetProgress = if (timerState.isIdle && selectedMode == TimerMode.FLOW) {
-        0f
-    } else {
-        timerState.progress
-    }
-    // Animatable whose .value is read ONLY inside the Canvas draw lambda so the
-    // 60fps animation never triggers a Compose recomposition — only a draw-layer
-    // redraw (GPU only).  animateFloatAsState reads state at composition scope
-    // and caused TokiTimerFace to recompose at 60fps every tick.
-    val progressAnim = remember { Animatable(targetProgress) }
-    LaunchedEffect(targetProgress) {
-        progressAnim.animateTo(
-            targetValue   = targetProgress,
-            animationSpec = tween(durationMillis = 300, easing = EmphasizedEasing),
-        )
-    }
-    val displayTime = if (timerState.isIdle && selectedMode == TimerMode.FLOW) {
-        "45:00"
-    } else {
-        timerState.displayTime
-    }
-    val phaseLabel = when {
-        visualMode == TimerMode.FLOW -> "FLOW"
-        timerState.phase == TimerPhase.SHORT_BREAK -> "SHORT BREAK"
-        timerState.phase == TimerPhase.LONG_BREAK -> "LONG BREAK"
-        else -> "FOCUS"
-    }
-
-    val ringStroke    = dimensionResource(R.dimen.timer_ring_stroke)
-    val ringInset     = dimensionResource(R.dimen.timer_ring_inset)
-    val handleRadius  = dimensionResource(R.dimen.timer_handle_radius)
-    val cs = MaterialTheme.colorScheme
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(faceSize)
-                .aspectRatio(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                // Reading progressAnim.value here (inside draw lambda) registers as a
-                // draw-phase state observation.  Only the draw layer is invalidated on
-                // each animation frame — no Compose recomposition occurs.
-                val p        = progressAnim.value
-                val strokePx = ringStroke.toPx()
-                val inset    = strokePx / 2f + ringInset.toPx()
-                val arcSize  = Size(size.width - inset * 2f, size.height - inset * 2f)
-                val topLeft  = Offset(inset, inset)
-                drawArc(
-                    color = cs.surfaceVariant,
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(strokePx, cap = StrokeCap.Round),
-                )
-                if (p > 0f) {
-                    drawArc(
-                        color = cs.primary,
-                        startAngle = -90f,
-                        sweepAngle = 360f * p,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = arcSize,
-                        style = Stroke(strokePx, cap = StrokeCap.Round),
-                    )
-                }
-                val angle  = Math.toRadians((-90f + 360f * p).toDouble())
-                val radius = (size.minDimension - inset * 2f) / 2f
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val handleCenter = Offset(
-                    x = center.x + cos(angle).toFloat() * radius,
-                    y = center.y + sin(angle).toFloat() * radius,
-                )
-                drawCircle(
-                    color  = cs.primary,
-                    radius = handleRadius.toPx(),
-                    center = handleCenter,
-                )
-            }
-
-            // Light circle so the original dark cat body is visible against it.
-            // Sized to fit inside the ring track:
-            //   inner_diameter ≈ faceSize − 2 × (stroke/2 + ringInset) − stroke = faceSize − 18dp
-            //   0.93 × faceSize gives comfortable clearance for all densities.
-            Box(
-                modifier = Modifier
-                    .size(faceSize * 0.93f)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1A1A1A)),
-            )
-            TokiMascot(
-                isIdle = timerState.isIdle,
-                isPaused = timerState.isPaused,
-                mode = visualMode,
-                phase = timerState.phase,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        Spacer(Modifier.height(dimensionResource(R.dimen.timer_display_space)))
-
-        Text(
-            text = displayTime,
-            color = cs.onBackground,
-            fontSize = HomeDefaults.TIMER_TEXT_SIZE_SP.sp,
-            lineHeight = 80.sp,
-            fontWeight = FontWeight.ExtraBold,
-            maxLines = 1,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = phaseLabel,
-            color = cs.onSurfaceVariant,
-            fontSize = HomeDefaults.PHASE_LABEL_SIZE_SP.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = HomeDefaults.PHASE_LETTER_SPACING_SP.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun IconActionPill(
-    icon:               androidx.compose.ui.graphics.vector.ImageVector,
-    active:             Boolean,
-    contentDescription: String,
-    modifier:           Modifier = Modifier,
-    onClick:            () -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-    Box(
-        modifier = modifier
-            .height(dimensionResource(R.dimen.home_action_pill_height))
-            .clip(RoundedCornerShape(50.dp))
-            .border(
-                width = 1.dp,
-                color = if (active) cs.primary else cs.outline,
-                shape = RoundedCornerShape(50.dp),
-            )
-            .background(
-                if (active) cs.primary.copy(alpha = 0.08f)
-                else        Color.Transparent
-            )
-            .clickable { onClick() }
-            .semantics { this.contentDescription = contentDescription },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector        = icon,
-            contentDescription = null,
-            tint               = if (active) cs.primary else cs.onSurfaceVariant,
-            modifier           = Modifier.size(dimensionResource(R.dimen.icon_size_standard)),
-        )
-    }
-}
-
-@Composable
-private fun MetricsRow(
-    todayCount: Int,
-    dailyGoal: Int,
-    streakDays: Int,
-) {
-    val goalDenominator = dailyGoal.coerceAtLeast(1)
-    val progress = (todayCount / goalDenominator.toFloat()).coerceIn(0f, 1f)
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.metric_card_gap)),
-    ) {
-        val cs = MaterialTheme.colorScheme
-        MetricCard(
-            label = "DAILY GOAL",
-            value = "$todayCount / $goalDenominator",
-            modifier = Modifier.weight(1f),
-        ) {
-            val progressHeight = dimensionResource(R.dimen.metric_progress_height)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(progressHeight)
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(cs.surfaceVariant),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress)
-                        .height(progressHeight)
-                        .clip(RoundedCornerShape(50.dp))
-                        .background(cs.onSurface.copy(alpha = 0.3f)),
-                )
-            }
-        }
-        MetricCard(
-            label = "STREAK",
-            value = if (streakDays == 0) "-" else streakDays.toString(),
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = "day streak",
-                color = cs.onSurfaceVariant,
-                fontSize = 15.sp,
-                lineHeight = 18.sp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MetricCard(
-    label:           String,
-    value:           String,
-    modifier:        Modifier = Modifier,
-    supportingContent: @Composable () -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-    val cardCorner  = dimensionResource(R.dimen.metric_card_corner)
-    val cardPadding = dimensionResource(R.dimen.metric_card_padding)
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(cardCorner))
-            .background(cs.surfaceContainerLow)
-            .border(1.dp, cs.outline, RoundedCornerShape(cardCorner))
-            .padding(cardPadding),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text     = label,
-            style    = MaterialTheme.typography.labelMedium,
-            color    = cs.onSurfaceVariant,
-            maxLines = 1,
-        )
-        Text(
-            text     = value,
-            style    = MaterialTheme.typography.headlineMedium,
-            color    = cs.onSurface,
-            maxLines = 1,
-        )
-        supportingContent()
     }
 }

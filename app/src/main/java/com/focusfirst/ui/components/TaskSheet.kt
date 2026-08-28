@@ -77,7 +77,7 @@ fun TaskSheet(
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
                 Text(
-                    text       = "Tasks",
+                    text       = "Session task",
                     fontSize   = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color      = Color.White,
@@ -106,7 +106,7 @@ fun TaskSheet(
                     onValueChange = { newTask = it },
                     placeholder   = {
                         Text(
-                            text  = if (canAdd) "Add a task…" else "Upgrade for more tasks",
+                            text  = if (canAdd) "Add a focus task" else "Upgrade for more tasks",
                             color = Color.White.copy(alpha = 0.5f),
                         )
                     },
@@ -210,7 +210,7 @@ fun TaskSheet(
                     }
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text     = "No tasks yet — add one above",
+                        text     = "No tasks yet. Add one above.",
                         fontSize = 13.sp,
                         color    = Color.White.copy(alpha = 0.5f),
                     )
