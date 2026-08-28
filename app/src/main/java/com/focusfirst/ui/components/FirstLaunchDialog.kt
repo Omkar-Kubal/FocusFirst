@@ -25,7 +25,7 @@ fun FirstLaunchDialog(
         containerColor   = Color(0xFF111111),
         title = {
             Text(
-                text       = "Welcome to Toki \uD83D\uDC4B",
+                text       = "Welcome to Toki",
                 fontSize   = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color      = Color.White,
@@ -34,13 +34,13 @@ fun FirstLaunchDialog(
         text = {
             Column {
                 Text(
-                    text     = "By using Toki, you agree to our Terms of Service and Privacy Policy.",
+                    text     = "Toki helps you start focus sessions quickly and keep your history on this device.",
                     fontSize = 14.sp,
                     color    = Color.White.copy(alpha = 0.8f),
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text     = "Toki collects no personal data. Everything stays on your device.",
+                    text     = "By continuing, you agree to the Terms of Service and Privacy Policy.",
                     fontSize = 12.sp,
                     color    = Color.White.copy(alpha = 0.5f),
                 )
@@ -54,7 +54,7 @@ fun FirstLaunchDialog(
                     contentColor   = Color.Black,
                 ),
             ) {
-                Text("I Agree", fontWeight = FontWeight.Bold)
+                Text("Continue", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

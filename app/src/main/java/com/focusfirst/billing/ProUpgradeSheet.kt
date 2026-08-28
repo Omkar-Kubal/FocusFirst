@@ -52,11 +52,11 @@ import kotlinx.coroutines.delay
 private val SheetBackground = Color(0xFF121212)
 
 private val proFeatures = listOf(
-    "8 ambient focus sounds",
-    "Night sky Pro skins — Ember, Sakura, Crystal",
-    "Subject tagging — track time per topic",
-    "Detailed analytics + monthly heatmap",
-    "Unlimited session history",
+    "Ambient focus sounds",
+    "Focus Guard app blocking",
+    "Cloud sync and restore",
+    "CSV session export",
+    "Expanded insights and history",
     "AMOLED pure black mode",
     "All future Pro features",
 )
@@ -223,7 +223,7 @@ private fun UpgradeContent(
     Spacer(Modifier.height(8.dp))
 
     Text(
-        text       = "Unlock Toki Pro",
+        text       = "Toki Pro",
         fontSize   = 24.sp,
         fontWeight = FontWeight.Bold,
         color      = Color.White,

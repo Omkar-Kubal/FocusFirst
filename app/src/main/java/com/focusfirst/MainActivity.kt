@@ -33,9 +33,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -85,7 +84,6 @@ import com.focusfirst.data.SettingsRepository
 import com.focusfirst.ui.components.FirstLaunchDialog
 import androidx.activity.compose.BackHandler
 import com.focusfirst.ui.screens.HomeScreen
-import com.focusfirst.ui.screens.TasksScreen
 import com.focusfirst.ui.screens.LicensesScreen
 import com.focusfirst.ui.screens.SettingsScreen
 import com.focusfirst.ui.screens.StatsScreen
@@ -102,7 +100,7 @@ import javax.inject.Inject
 // Navigation
 // ============================================================================
 
-private enum class Tab { HOME, TASKS, STATS, SETTINGS }
+private enum class Tab { HOME, STATS, SETTINGS }
 
 private data class TabItem(
     val tab:   Tab,
@@ -111,10 +109,9 @@ private data class TabItem(
 )
 
 private val tabs = listOf(
-    TabItem(Tab.HOME,     "TIMER",    Icons.Outlined.Timer),
-    TabItem(Tab.TASKS,    "TASKS",    Icons.AutoMirrored.Outlined.List),
-    TabItem(Tab.STATS,    "STATS",    Icons.Outlined.BarChart),
-    TabItem(Tab.SETTINGS, "SETTINGS", Icons.Outlined.Person),
+    TabItem(Tab.HOME,     "Focus",    Icons.Outlined.Timer),
+    TabItem(Tab.STATS,    "Insights", Icons.Outlined.BarChart),
+    TabItem(Tab.SETTINGS, "Settings", Icons.Outlined.Settings),
 )
 
 // ============================================================================
@@ -340,9 +337,6 @@ private fun FocusFirstAppContent(
                 Tab.HOME     -> HomeScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
-                Tab.TASKS    -> TasksScreen(
-                    onNavigateToHome = { onTabSelected(Tab.HOME) }
-                )
                 Tab.STATS    -> StatsScreen(
                     onNavigateToSettings = { onTabSelected(Tab.SETTINGS) },
                 )
@@ -421,23 +415,31 @@ private fun FocusBottomNav(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .width(64.dp)
-                            .height(40.dp)
+                            .width(76.dp)
+                            .height(52.dp)
                             .clip(RoundedCornerShape(50.dp))
                             .background(
                                 if (isSelected) cs.primaryContainer
                                 else            Color.Transparent
-                            ),
-                        contentAlignment = Alignment.Center,
+                            )
+                            .padding(vertical = 5.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
                         Icon(
                             imageVector        = item.icon,
                             contentDescription = item.label,
-                            modifier           = Modifier.size(26.dp),
+                            modifier           = Modifier.size(22.dp),
                             tint               = if (isSelected) cs.onPrimaryContainer
                                                  else            cs.onSurfaceVariant,
+                        )
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) cs.onPrimaryContainer else cs.onSurfaceVariant,
+                            maxLines = 1,
                         )
                     }
                 }

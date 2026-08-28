@@ -99,7 +99,6 @@ private fun TokiWidgetContent() {
             horizontalAlignment   = Alignment.CenterHorizontally,
             verticalAlignment     = Alignment.CenterVertically,
         ) {
-            // App name
             Text(
                 text  = "Toki",
                 style = TextStyle(
@@ -111,9 +110,8 @@ private fun TokiWidgetContent() {
 
             Spacer(GlanceModifier.height(2.dp))
 
-            // Phase label
             Text(
-                text  = phase,
+                text  = if (phase == "READY") "FOCUS READY" else phase,
                 style = TextStyle(
                     color      = ColorProvider(Color(0xFF888888)),
                     fontSize   = 10.sp,
@@ -135,7 +133,6 @@ private fun TokiWidgetContent() {
 
             Spacer(GlanceModifier.height(10.dp))
 
-            // Start button — only when idle
             if (!isRunning && remainingSeconds == 0) {
                 Box(
                     modifier         = GlanceModifier
@@ -146,7 +143,7 @@ private fun TokiWidgetContent() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text  = "Start",
+                        text  = "Focus",
                         style = TextStyle(
                             color      = ColorProvider(Color.Black),
                             fontSize   = 12.sp,
@@ -158,10 +155,9 @@ private fun TokiWidgetContent() {
                 Spacer(GlanceModifier.height(8.dp))
             }
 
-            // Today's session count
             if (todayCount > 0) {
                 Text(
-                    text  = "$todayCount 🍅",
+                    text  = "$todayCount today",
                     style = TextStyle(
                         color    = ColorProvider(Color(0xFF888888)),
                         fontSize = 10.sp,

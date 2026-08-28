@@ -55,7 +55,7 @@ fun TasksScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("TASKS", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                title = { Text("Session tasks", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -370,7 +370,7 @@ fun AddTaskDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("NEW TASK", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+        title = { Text("New task", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
